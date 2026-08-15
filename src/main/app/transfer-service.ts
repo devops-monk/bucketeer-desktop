@@ -50,7 +50,23 @@ export class TransferService {
    */
   async upload(request: UploadRequest): Promise<number> {
     const connection = await this.repository.get(request.connectionId)
-    const kmsKeyId = request.kmsKeyId ?? connection.kmsKeyId
+    const encryption = request.encryption ?? { mode: 'auto' }
+
+    let kmsKeyId: string | undefined
+    if (encryption.mode === 'kms') {
+      kmsKeyId = encryption.kmsKeyId
+    } else if (encryption.mode === 'auto') {
+      kmsKeyId = connection.kmsKeyId
+
+      // Fall back to the bucket's own default key. Buckets that mandate SSE-KMS through
+      // a policy reject uploads that omit the headers, even though default encryption
+      // would have applied the very same key — the policy is evaluated on the request,
+      // not the result. Reading the default spares the user looking the ARN up by hand.
+      if (!kmsKeyId) {
+        const fallback = await this.storage.getDefaultEncryption(connection, request.bucket)
+        if (fallback?.sseAlgorithm === 'aws:kms' && fallback.kmsKeyId) kmsKeyId = fallback.kmsKeyId
+      }
+    }
 
     const files: Array<{ localPath: string; key: string; size: number }> = []
     for (const path of request.paths) {
@@ -201,7 +217,7 @@ export class TransferService {
         }
         this.update(transfer.id, {
           status: 'failed',
-          error: error instanceof Error ? error.message : String(error),
+          error: explainFailure(error, transfer),
           finishedAt: this.clock.nowIso()
         })
       } finally {
@@ -246,6 +262,30 @@ export class TransferService {
     }
     this.broadcaster.transfersChanged(this.list())
   }
+}
+
+/**
+ * Adds the cause to a transfer failure where AWS's own message states the rule but not
+ * the reason it was broken.
+ *
+ * The case that matters: buckets commonly carry a policy denying any PutObject that is
+ * not encrypted with one specific KMS key. AWS reports that as a bare "explicit deny in
+ * a resource-based policy", which reads like a permissions problem and sends people to
+ * their IAM role — when the actual fix is one field on the connection.
+ */
+function explainFailure(error: unknown, transfer: Transfer): string {
+  const message = error instanceof Error ? error.message : String(error)
+
+  const denied = /explicit deny|AccessDenied|not authorized/i.test(message)
+  if (transfer.kind === 'upload' && denied && !transfer.kmsKeyId) {
+    return `${message}\n\nThis upload sent no encryption headers: the connection has no KMS key, and the bucket's default encryption could not be read — that call needs s3:GetEncryptionConfiguration. Buckets whose policy mandates SSE-KMS deny such uploads. Set "KMS key for uploads" on the connection to the key's full ARN.`
+  }
+
+  if (transfer.kind === 'upload' && denied && transfer.kmsKeyId) {
+    return `${message}\n\nThis upload used KMS key "${transfer.kmsKeyId}". If the bucket policy requires a specific key, the connection must name that key by its full ARN — an alias or key id will not match a policy written against an ARN.`
+  }
+
+  return message
 }
 
 /**

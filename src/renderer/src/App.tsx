@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ConnectionSummary } from '@shared/types'
+import type { ConnectionSummary, UploadEncryption } from '@shared/types'
 import { BucketList } from './components/BucketList'
 import { ConnectionEditor } from './components/ConnectionEditor'
 import { ConnectionRail } from './components/ConnectionRail'
@@ -8,6 +8,7 @@ import { ObjectDetails } from './components/ObjectDetails'
 import { ObjectTable } from './components/ObjectTable'
 import { PathBar } from './components/PathBar'
 import { Toolbar } from './components/Toolbar'
+import { UploadDialog } from './components/UploadDialog'
 import { TransferPanel } from './components/TransferPanel'
 import { SsoSignIn } from './components/SsoSignIn'
 import { Button, EmptyState, ErrorNotice, LoadingBar } from './components/primitives'
@@ -26,6 +27,7 @@ export function App() {
   const [detailsKey, setDetailsKey] = useState<string | null>(null)
   const [dropActive, setDropActive] = useState(false)
   const [dropError, setDropError] = useState<string | null>(null)
+  const [droppedPaths, setDroppedPaths] = useState<string[] | null>(null)
 
   const connections = useSession((state) => state.connections)
   const activeId = useSession((state) => state.activeConnectionId)
@@ -74,20 +76,31 @@ export function App() {
       const paths = [...event.dataTransfer.files].map((file) => window.pathForFile(file)).filter(Boolean)
       if (paths.length === 0) return
 
-      try {
-        setDropError(null)
-        await api.transfers.upload({
-          connectionId: activeId,
-          bucket: location.bucket,
-          prefix: location.prefix,
-          paths
-        })
-      } catch (failure) {
-        setDropError(messageFor(failure))
-      }
+      // Dropped files take the same confirmation as the toolbar: which key encrypts
+      // an upload is not something to decide silently on the user's behalf.
+      setDropError(null)
+      setDroppedPaths(paths)
     },
     [activeId, location]
   )
+
+  async function startDroppedUpload(encryption: UploadEncryption) {
+    const paths = droppedPaths ?? []
+    setDroppedPaths(null)
+    if (!activeId || !location) return
+
+    try {
+      await api.transfers.upload({
+        connectionId: activeId,
+        bucket: location.bucket,
+        prefix: location.prefix,
+        paths,
+        encryption
+      })
+    } catch (failure) {
+      setDropError(messageFor(failure))
+    }
+  }
 
   function openEditor(connection: ConnectionSummary | null) {
     setEditing(connection)
@@ -209,6 +222,14 @@ export function App() {
 
       <TransferPanel />
       <ManifestStrip />
+
+      {droppedPaths ? (
+        <UploadDialog
+          paths={droppedPaths}
+          onConfirm={(encryption) => void startDroppedUpload(encryption)}
+          onCancel={() => setDroppedPaths(null)}
+        />
+      ) : null}
 
       {editorOpen ? (
         <ConnectionEditor connection={editing} onClose={() => setEditorOpen(false)} />

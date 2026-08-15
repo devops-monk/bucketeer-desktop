@@ -5,6 +5,7 @@ import type { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import {
   CopyObjectCommand,
+  GetBucketEncryptionCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -40,6 +41,12 @@ const PART_SIZE = 8 * 1024 * 1024
 
 /** ObjectStorage backed by the AWS SDK. The only place S3 commands are issued. */
 export class S3ObjectStorage implements ObjectStorage {
+  /** bucket → its default encryption, including a remembered "none". */
+  private readonly defaultEncryption = new Map<
+    string,
+    { sseAlgorithm: string; kmsKeyId?: string } | null
+  >()
+
   constructor(
     private readonly factory: S3ClientFactory,
     private readonly credentials: CredentialResolver
@@ -107,6 +114,41 @@ export class S3ObjectStorage implements ObjectStorage {
       kmsKeyId: result.SSEKMSKeyId,
       metadata: result.Metadata
     }
+  }
+
+  /**
+   * Reads the bucket's default encryption so uploads can name the same key.
+   *
+   * Bucket default encryption is applied after the bucket policy is evaluated, so a
+   * policy requiring SSE-KMS headers rejects an upload that omits them even when the
+   * bucket would have encrypted it anyway. Reading the default lets us send the headers
+   * the policy demands without the user having to look the key up.
+   *
+   * Cached because it is per bucket, not per file, and answered optimistically: many
+   * roles can write to a bucket without holding s3:GetEncryptionConfiguration.
+   */
+  async getDefaultEncryption(
+    connection: Connection,
+    bucket: string
+  ): Promise<{ sseAlgorithm: string; kmsKeyId?: string } | null> {
+    const cacheKey = `${connection.id}:${bucket}`
+    if (this.defaultEncryption.has(cacheKey)) return this.defaultEncryption.get(cacheKey) ?? null
+
+    let resolved: { sseAlgorithm: string; kmsKeyId?: string } | null = null
+    try {
+      const client = await this.factory.forBucket(connection, bucket)
+      const result = await client.send(new GetBucketEncryptionCommand({ Bucket: bucket }))
+      const rule = result.ServerSideEncryptionConfiguration?.Rules?.[0]?.ApplyServerSideEncryptionByDefault
+      if (rule?.SSEAlgorithm) {
+        resolved = { sseAlgorithm: rule.SSEAlgorithm, kmsKeyId: rule.KMSMasterKeyID }
+      }
+    } catch {
+      // Denied, or no configuration set. Neither is fatal: the upload simply falls back
+      // to whatever the connection specifies.
+    }
+
+    this.defaultEncryption.set(cacheKey, resolved)
+    return resolved
   }
 
   async listAllKeys(connection: Connection, bucket: string, prefix: string): Promise<S3Object[]> {

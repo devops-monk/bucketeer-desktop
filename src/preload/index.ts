@@ -37,7 +37,9 @@ const api: BucketeerApi = {
     }
   },
   buckets: {
-    list: (connectionId: string) => ipcRenderer.invoke(Channels.bucketsList, connectionId)
+    list: (connectionId: string) => ipcRenderer.invoke(Channels.bucketsList, connectionId),
+    encryption: (connectionId: string, bucket: string) =>
+      ipcRenderer.invoke(Channels.bucketsEncryption, connectionId, bucket)
   },
   objects: {
     list: (request: ListObjectsRequest) => ipcRenderer.invoke(Channels.objectsList, request),

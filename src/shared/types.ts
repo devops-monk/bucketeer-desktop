@@ -132,6 +132,12 @@ export interface SsoLoginResult {
   expiresAt: string
 }
 
+/** A bucket's default server-side encryption, as reported by S3. */
+export interface BucketEncryption {
+  sseAlgorithm: string
+  kmsKeyId?: string
+}
+
 export type TransferKind = 'upload' | 'download'
 
 export type TransferStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled'
@@ -156,6 +162,18 @@ export interface Transfer {
   kmsKeyId?: string
 }
 
+/**
+ * How a batch of uploads should be encrypted.
+ *
+ * "auto" uses the connection's key, falling back to the bucket's default. "none" sends
+ * no encryption headers at all — legitimate for buckets with no policy, but rejected by
+ * buckets that mandate SSE-KMS, so it is a deliberate choice rather than a default.
+ */
+export type UploadEncryption =
+  | { mode: 'auto' }
+  | { mode: 'none' }
+  | { mode: 'kms'; kmsKeyId: string }
+
 export interface UploadRequest {
   connectionId: string
   bucket: string
@@ -163,8 +181,8 @@ export interface UploadRequest {
   prefix: string
   /** Absolute local paths. Directories are walked recursively. */
   paths: string[]
-  /** Overrides the connection's default key for this batch. */
-  kmsKeyId?: string
+  /** Defaults to auto when omitted. */
+  encryption?: UploadEncryption
 }
 
 export interface DownloadRequest {

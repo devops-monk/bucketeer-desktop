@@ -41,7 +41,9 @@ export const api = {
     onSsoPending: bridge.credentials.onSsoPending
   },
   buckets: {
-    list: (connectionId: string) => unwrap(bridge.buckets.list(connectionId))
+    list: (connectionId: string) => unwrap(bridge.buckets.list(connectionId)),
+    encryption: (connectionId: string, bucket: string) =>
+      unwrap(bridge.buckets.encryption(connectionId, bucket))
   },
   objects: {
     list: (...args: Parameters<typeof bridge.objects.list>) => unwrap(bridge.objects.list(...args)),

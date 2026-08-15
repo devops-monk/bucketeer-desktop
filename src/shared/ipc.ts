@@ -1,5 +1,6 @@
 import type {
   Bucket,
+  BucketEncryption,
   Connection,
   ConnectionSummary,
   CreateFolderRequest,
@@ -36,6 +37,7 @@ export const Channels = {
   objectsRename: 'objects:rename',
   objectsCreateFolder: 'objects:create-folder',
   objectsPresign: 'objects:presign',
+  bucketsEncryption: 'buckets:encryption',
   transfersUpload: 'transfers:upload',
   transfersDownload: 'transfers:download',
   transfersList: 'transfers:list',
@@ -75,6 +77,8 @@ export interface BucketeerApi {
   }
   buckets: {
     list(connectionId: string): Promise<Result<Bucket[]>>
+    /** The bucket's default encryption, or null when unset or not readable. */
+    encryption(connectionId: string, bucket: string): Promise<Result<BucketEncryption | null>>
   }
   objects: {
     list(request: ListObjectsRequest): Promise<Result<ListingPage>>

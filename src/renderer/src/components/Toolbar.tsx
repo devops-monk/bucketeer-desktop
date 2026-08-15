@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { api, messageFor } from '../lib/api'
 import { useSession } from '../store/session'
+import type { UploadEncryption } from '@shared/types'
 import { ConfirmDialog, LinkDialog, PromptDialog } from './dialogs'
+import { UploadDialog } from './UploadDialog'
 import {
   DownloadIcon,
   LinkIcon,
@@ -33,6 +35,7 @@ export function Toolbar() {
 
   const [dialog, setDialog] = useState<'folder' | 'rename' | 'delete' | null>(null)
   const [link, setLink] = useState<string | null>(null)
+  const [pendingPaths, setPendingPaths] = useState<string[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,16 +46,27 @@ export function Toolbar() {
   const selectedCount = selectedKeys.length + selectedPrefixes.length
   const singleObject = selectedKeys.length === 1 && selectedPrefixes.length === 0
 
-  async function upload() {
+  async function chooseFiles() {
     setError(null)
     try {
       const paths = await api.dialog.pickFiles()
-      if (paths.length === 0) return
+      // Encryption is confirmed before anything moves, not after a denial.
+      if (paths.length > 0) setPendingPaths(paths)
+    } catch (failure) {
+      setError(messageFor(failure))
+    }
+  }
+
+  async function startUpload(encryption: UploadEncryption) {
+    const paths = pendingPaths ?? []
+    setPendingPaths(null)
+    try {
       await api.transfers.upload({
         connectionId: connectionId as string,
         bucket: location!.bucket,
         prefix: location!.prefix,
-        paths
+        paths,
+        encryption
       })
     } catch (failure) {
       setError(messageFor(failure))
@@ -159,7 +173,7 @@ export function Toolbar() {
   return (
     <>
       <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-line bg-panel px-3">
-        <Button variant="primary" onClick={() => void upload()}>
+        <Button variant="primary" onClick={() => void chooseFiles()}>
           <UploadIcon />
           Upload
         </Button>
@@ -247,6 +261,14 @@ export function Toolbar() {
 
       {link ? (
         <LinkDialog url={link} expiresLabel="in 24 hours" onClose={() => setLink(null)} />
+      ) : null}
+
+      {pendingPaths ? (
+        <UploadDialog
+          paths={pendingPaths}
+          onConfirm={(encryption) => void startUpload(encryption)}
+          onCancel={() => setPendingPaths(null)}
+        />
       ) : null}
     </>
   )

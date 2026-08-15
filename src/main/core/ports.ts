@@ -75,6 +75,14 @@ export interface ObjectStorage {
   listObjects(connection: Connection, request: Omit<ListObjectsRequest, 'connectionId'>): Promise<ListingPage>
   headObject(connection: Connection, bucket: string, key: string): Promise<ObjectDetail>
 
+  /**
+   * The bucket's default encryption, or null when there is none or we are not allowed
+   * to ask. Used to satisfy policies that demand SSE-KMS headers on every upload.
+   */
+  getDefaultEncryption(
+    connection: Connection,
+    bucket: string
+  ): Promise<{ sseAlgorithm: string; kmsKeyId?: string } | null>
   /** Every key under a prefix, following pagination to the end. */
   listAllKeys(connection: Connection, bucket: string, prefix: string): Promise<S3Object[]>
   /** Streams a local file up, using multipart when the file is large enough to need it. */

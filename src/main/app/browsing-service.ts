@@ -1,4 +1,10 @@
-import type { Bucket, ListObjectsRequest, ListingPage, ObjectDetail } from '@shared/types'
+import type {
+  Bucket,
+  BucketEncryption,
+  ListObjectsRequest,
+  ListingPage,
+  ObjectDetail
+} from '@shared/types'
 import type { ConnectionRepository, ObjectStorage } from '../core/ports'
 
 /**
@@ -18,6 +24,11 @@ export class BrowsingService {
   async listObjects(request: ListObjectsRequest): Promise<ListingPage> {
     const { connectionId, ...rest } = request
     return this.storage.listObjects(await this.repository.get(connectionId), rest)
+  }
+
+  /** What the bucket encrypts new objects with by default, when it will tell us. */
+  async bucketEncryption(connectionId: string, bucket: string): Promise<BucketEncryption | null> {
+    return this.storage.getDefaultEncryption(await this.repository.get(connectionId), bucket)
   }
 
   async headObject(connectionId: string, bucket: string, key: string): Promise<ObjectDetail> {
