@@ -21,9 +21,10 @@
     "icon": "electron scripts/make-icon.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:localstack": "docker run --rm -d --name bucketeer-localstack -p 4566:4566 -e SERVICES=s3 localstack/localstack && echo \"LocalStack on :4566 — run: S3_TEST_ENDPOINT=http://127.0.0.1:4566 npm test\"",
-    "test:minio": "docker run --rm -d --name bucketeer-minio -p 9000:9000 -e MINIO_ROOT_USER=bucketeer -e MINIO_ROOT_PASSWORD=bucketeer123 minio/minio server /data && echo \"MinIO on :9000 — run: S3_TEST_ENDPOINT=http://127.0.0.1:9000 S3_TEST_KEY=bucketeer S3_TEST_SECRET=bucketeer123 npm test\"",
-    "test:stop": "docker rm -f bucketeer-localstack bucketeer-minio 2>/dev/null || true"
+    "test:localstack": "docker run --rm -d --name bucketeer-localstack -p 4566:4566 -e SERVICES=s3 localstack/localstack && echo \"LocalStack on :4566 \u2014 run: S3_TEST_ENDPOINT=http://127.0.0.1:4566 npm test\"",
+    "test:minio": "docker run --rm -d --name bucketeer-minio -p 9000:9000 -e MINIO_ROOT_USER=bucketeer -e MINIO_ROOT_PASSWORD=bucketeer123 minio/minio server /data && echo \"MinIO on :9000 \u2014 run: S3_TEST_ENDPOINT=http://127.0.0.1:9000 S3_TEST_KEY=bucketeer S3_TEST_SECRET=bucketeer123 npm test\"",
+    "test:stop": "docker rm -f bucketeer-localstack bucketeer-minio 2>/dev/null || true",
+    "icon:tray": "electron scripts/make-icon.cjs --tray && electron scripts/make-icon.cjs --tray --colour"
   },
   "devDependencies": {
     "@aws-sdk/types": "^3.974.4",

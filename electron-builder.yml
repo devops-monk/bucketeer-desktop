@@ -9,6 +9,9 @@ directories:
 files:
   - out/**
   - package.json
+  # The tray icons are read at runtime by path, so they have to be inside the app.
+  - build/trayTemplate.png
+  - build/trayColour.png
 
 # The AWS SDK is bundled into the main chunk, so nothing needs unpacking at runtime.
 asar: true

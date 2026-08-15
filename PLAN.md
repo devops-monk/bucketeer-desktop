@@ -92,6 +92,13 @@ without them.
 | Transfer acceleration | S | Per bucket, detected |
 | Tunable concurrency and part size | S | Per connection |
 
+### Desktop integration — **done**
+
+| Feature | Effort | Notes |
+| --- | --- | --- |
+| Menu bar and tray item | S | Template image on macOS, coloured on Windows and Linux |
+| Taskbar and Dock progress | S | Progress bar everywhere, plus a count badge on macOS |
+
 ### v0.9 — Around the edges
 
 | Feature | Effort | Notes |

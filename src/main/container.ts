@@ -15,6 +15,7 @@ import { DeviceCodeSsoAuthenticator } from './infra/credentials/sso-login'
 import { S3ClientFactory } from './infra/s3/client-factory'
 import { S3ObjectStorage } from './infra/s3/s3-object-storage'
 import { WindowBroadcaster } from './infra/broadcaster'
+import { SystemIntegration } from './infra/system-integration'
 import { SettingsStore } from './infra/settings-store'
 import { ShellUrlOpener } from './infra/url-opener'
 import { SafeStorageVault } from './infra/vault'
@@ -32,6 +33,7 @@ import { IpcRouter } from './ipc/router'
 
 export interface Container {
   settings: SettingsStore
+  system: SystemIntegration
   connections: ConnectionService
   browsing: BrowsingService
   objects: ObjectService
@@ -51,7 +53,10 @@ export function createContainer(): Container {
   const storage = new S3ObjectStorage(new S3ClientFactory(credentials), credentials)
   const settings = new SettingsStore()
   const profiles = new SharedConfigProfileDirectory()
-  const broadcaster = new WindowBroadcaster()
+  // Wrapping rather than sitting beside it: one path for "the queue changed", so the
+  // window, the tray and the taskbar cannot drift apart.
+  const system = new SystemIntegration(new WindowBroadcaster())
+  const broadcaster = system
   const sso = new DeviceCodeSsoAuthenticator(profiles, new ShellUrlOpener())
 
   const connections = new ConnectionService(
@@ -80,6 +85,7 @@ export function createContainer(): Container {
 
   return {
     settings,
+    system,
     connections,
     browsing,
     objects,
@@ -97,6 +103,7 @@ export function createContainer(): Container {
       for (const module of modules) module.register(router)
     },
     dispose() {
+      system.dispose()
       // Abort in-flight transfers before tearing down the clients they are using.
       transfers.dispose()
       storage.dispose()

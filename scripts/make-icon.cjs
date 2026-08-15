@@ -27,6 +27,19 @@ const run = promisify(execFile)
 const root = join(__dirname, '..')
 const SIZE = 1024
 
+/**
+ * The menu bar icon is rendered by a second run of this script, because Electron cannot
+ * create a second BrowserWindow in one process without dying. Pass --tray.
+ */
+const TRAY = process.argv.includes('--tray')
+/** Windows and Linux tray icons are not tinted by the system, so they keep the brand. */
+const TRAY_COLOUR = process.argv.includes('--colour')
+const TRAY_SIZE = 36
+
+function trayFileName() {
+  return TRAY_COLOUR ? 'trayColour.png' : 'trayTemplate.png'
+}
+
 /** The sizes an .iconset must contain, as {filename size} pairs. */
 const ICONSET = [
   ['icon_16x16.png', 16],
@@ -67,16 +80,21 @@ app.whenReady().then(async () => {
   const scratch = join(tmpdir(), `bucketeer-icon-${process.pid}`)
   try {
     await mkdir(scratch, { recursive: true })
-    const source = await readFile(join(root, 'build', 'icon.svg'), 'utf8')
+    const source = await readFile(join(root, 'build', TRAY ? 'tray.svg' : 'icon.svg'), 'utf8')
 
     // capturePage returns physical pixels, so a window of SIZE/scaleFactor logical
     // pixels captures at exactly SIZE — no post-capture scaling required.
     const { scaleFactor } = screen.getPrimaryDisplay()
-    const logical = Math.round(SIZE / scaleFactor)
-    const svg = source.replace(/width="1024" height="1024"/, `width="${logical}" height="${logical}"`)
+    const target = TRAY ? TRAY_SIZE : SIZE
+    const logical = Math.round(target / scaleFactor)
+    let svg = source.replace(
+      TRAY ? /width="32" height="32"/ : /width="1024" height="1024"/,
+      `width="${logical}" height="${logical}"`
+    )
+    if (TRAY_COLOUR) svg = svg.replace(/#000000/g, '#DE007B')
 
-    const file = join(scratch, 'icon.html')
-    await writeFile(file, `<html><body style="margin:0;background:transparent">${svg}</body></html>`)
+    const page = join(scratch, 'icon.html')
+    await writeFile(page, `<html><body style="margin:0;background:transparent">${svg}</body></html>`)
 
     const window = new BrowserWindow({
       width: logical,
@@ -91,21 +109,23 @@ app.whenReady().then(async () => {
       skipTaskbar: true
     })
 
-    await window.loadFile(file)
+    await window.loadFile(page)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     const png = (await window.webContents.capturePage()).toPNG()
     const { width } = nativeImage.createFromBuffer(png).getSize()
-    if (width !== SIZE) {
-      throw new Error(`Expected a ${SIZE}px render but got ${width}px.`)
+    if (width !== target) {
+      throw new Error(`Expected a ${target}px render but got ${width}px.`)
     }
 
-    const target = join(root, 'build', 'icon.png')
-    await writeFile(target, png)
-    console.log(`wrote ${target} — ${width}px, ${(png.length / 1024).toFixed(1)} kB`)
+    // The Template suffix is what tells macOS to tint the icon with the menu bar's
+    // colour; Windows and Linux tray icons are drawn as-is and so keep their own.
+    const outputPath = join(root, 'build', TRAY ? trayFileName() : 'icon.png')
+    await writeFile(outputPath, png)
+    console.log(`wrote ${outputPath} — ${width}px, ${(png.length / 1024).toFixed(1)} kB`)
 
-    if (process.platform === 'darwin') {
-      await buildIcns(target, scratch)
+    if (!TRAY && process.platform === 'darwin') {
+      await buildIcns(outputPath, scratch)
     }
   } catch (error) {
     console.error('Icon generation failed:', error)
