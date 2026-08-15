@@ -1,6 +1,7 @@
 import type {
   Bucket,
   BucketEncryption,
+  BucketSettings,
   CopyResult,
   CreateBucketRequest,
   DeleteBucketRequest,
@@ -59,6 +60,9 @@ export const Channels = {
   objectsSetHeaders: 'objects:set-headers',
   objectsRestore: 'objects:restore',
   bucketsEncryption: 'buckets:encryption',
+  bucketsSettings: 'buckets:settings',
+  bucketsSetPolicy: 'buckets:set-policy',
+  bucketsSetVersioning: 'buckets:set-versioning',
   bucketsCreate: 'buckets:create',
   bucketsDelete: 'buckets:delete',
   objectsCopy: 'objects:copy',
@@ -113,6 +117,11 @@ export interface BucketeerApi {
     list(connectionId: string): Promise<Result<Bucket[]>>
     /** The bucket's default encryption, or null when unset or not readable. */
     encryption(connectionId: string, bucket: string): Promise<Result<BucketEncryption | null>>
+    /** Policy, versioning, public access and encryption, each denied independently. */
+    settings(connectionId: string, bucket: string): Promise<Result<BucketSettings>>
+    /** Replaces the policy, or removes it when given null. Validated before sending. */
+    setPolicy(connectionId: string, bucket: string, policy: string | null): Promise<Result<void>>
+    setVersioning(connectionId: string, bucket: string, enabled: boolean): Promise<Result<void>>
     create(request: CreateBucketRequest): Promise<Result<void>>
     /** Fails while the bucket still holds anything, which S3 enforces. */
     remove(request: DeleteBucketRequest): Promise<Result<void>>

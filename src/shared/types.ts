@@ -196,6 +196,30 @@ export interface KmsKey {
   managedByAws: boolean
 }
 
+/**
+ * The bucket-level settings that decide whether an operation is allowed at all.
+ *
+ * Every field is optional and separately denied: these are administrative reads, and an
+ * ordinary user is typically allowed some and refused others. A refusal is reported as
+ * such rather than as an absence, because "you cannot see this" and "this is not set"
+ * mean very different things when debugging a denial.
+ */
+export interface BucketSettings {
+  policy: string | null
+  policyDenied: boolean
+  versioning: 'Enabled' | 'Suspended' | 'Disabled' | 'Unknown'
+  versioningDenied: boolean
+  publicAccess: {
+    blockPublicAcls: boolean
+    ignorePublicAcls: boolean
+    blockPublicPolicy: boolean
+    restrictPublicBuckets: boolean
+  } | null
+  publicAccessDenied: boolean
+  encryption: BucketEncryption | null
+  encryptionDenied: boolean
+}
+
 /** A bucket's default server-side encryption, as reported by S3. */
 export interface BucketEncryption {
   sseAlgorithm: string

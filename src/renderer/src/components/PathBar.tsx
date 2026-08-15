@@ -1,6 +1,8 @@
 import { breadcrumbs } from '../lib/format'
 import { useSession } from '../store/session'
-import { RefreshIcon, UpIcon } from './icons'
+import { useState } from 'react'
+import { BucketSettingsDialog } from './BucketSettingsDialog'
+import { RefreshIcon, SettingsIcon, UpIcon } from './icons'
 import { Button, Tooltip } from './primitives'
 
 /**
@@ -13,6 +15,7 @@ export function PathBar({ onRefresh }: { onRefresh: () => void }) {
   const navigateTo = useSession((state) => state.navigateTo)
   const openBucket = useSession((state) => state.openBucket)
   const loading = useSession((state) => state.loading)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   if (!location) return null
 
@@ -48,11 +51,21 @@ export function PathBar({ onRefresh }: { onRefresh: () => void }) {
         <span className="text-faint">/</span>
       </div>
 
+      <Tooltip label="Encryption, versioning, public access and the bucket policy" side="bottom">
+        <Button onClick={() => setSettingsOpen(true)} aria-label="Bucket settings">
+          <SettingsIcon />
+        </Button>
+      </Tooltip>
+
       <Tooltip label="Reload this folder" side="bottom">
         <Button onClick={onRefresh} disabled={loading} aria-label="Refresh this listing">
           <RefreshIcon className={loading ? 'animate-spin' : ''} />
         </Button>
       </Tooltip>
+
+      {settingsOpen ? (
+        <BucketSettingsDialog bucket={location.bucket} onClose={() => setSettingsOpen(false)} />
+      ) : null}
     </div>
   )
 }

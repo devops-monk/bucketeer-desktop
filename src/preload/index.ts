@@ -51,6 +51,12 @@ const api: BucketeerApi = {
     list: (connectionId: string) => ipcRenderer.invoke(Channels.bucketsList, connectionId),
     encryption: (connectionId: string, bucket: string) =>
       ipcRenderer.invoke(Channels.bucketsEncryption, connectionId, bucket),
+    settings: (connectionId: string, bucket: string) =>
+      ipcRenderer.invoke(Channels.bucketsSettings, connectionId, bucket),
+    setPolicy: (connectionId: string, bucket: string, policy: string | null) =>
+      ipcRenderer.invoke(Channels.bucketsSetPolicy, connectionId, bucket, policy),
+    setVersioning: (connectionId: string, bucket: string, enabled: boolean) =>
+      ipcRenderer.invoke(Channels.bucketsSetVersioning, connectionId, bucket, enabled),
     create: (request: CreateBucketRequest) => ipcRenderer.invoke(Channels.bucketsCreate, request),
     remove: (request: DeleteBucketRequest) => ipcRenderer.invoke(Channels.bucketsDelete, request)
   },

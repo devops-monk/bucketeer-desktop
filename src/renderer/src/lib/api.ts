@@ -45,6 +45,12 @@ export const api = {
     list: (connectionId: string) => unwrap(bridge.buckets.list(connectionId)),
     encryption: (connectionId: string, bucket: string) =>
       unwrap(bridge.buckets.encryption(connectionId, bucket)),
+    settings: (...args: Parameters<typeof bridge.buckets.settings>) =>
+      unwrap(bridge.buckets.settings(...args)),
+    setPolicy: (...args: Parameters<typeof bridge.buckets.setPolicy>) =>
+      unwrap(bridge.buckets.setPolicy(...args)),
+    setVersioning: (...args: Parameters<typeof bridge.buckets.setVersioning>) =>
+      unwrap(bridge.buckets.setVersioning(...args)),
     create: (...args: Parameters<typeof bridge.buckets.create>) =>
       unwrap(bridge.buckets.create(...args)),
     remove: (...args: Parameters<typeof bridge.buckets.remove>) =>

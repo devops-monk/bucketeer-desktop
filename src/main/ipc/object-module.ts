@@ -61,6 +61,19 @@ export class ObjectModule implements IpcModule {
     router.handle(Channels.objectsStorageClass, (request: SetStorageClassRequest) =>
       this.buckets.setStorageClass(request)
     )
+    router.handle(Channels.bucketsSettings, (connectionId: string, bucket: string) =>
+      this.buckets.settings(connectionId, bucket)
+    )
+    router.handle(
+      Channels.bucketsSetPolicy,
+      (connectionId: string, bucket: string, policy: string | null) =>
+        this.buckets.setPolicy(connectionId, bucket, policy)
+    )
+    router.handle(
+      Channels.bucketsSetVersioning,
+      (connectionId: string, bucket: string, enabled: boolean) =>
+        this.buckets.setVersioning(connectionId, bucket, enabled)
+    )
     router.handle(Channels.bucketsCreate, (request: CreateBucketRequest) =>
       this.buckets.create(request)
     )

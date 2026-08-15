@@ -374,3 +374,59 @@ describe('object metadata', () => {
     expect(server.restores).toContain('test-bucket/reports/readme.txt')
   })
 })
+
+describe('bucket settings', () => {
+  it('separates "not configured" from "not allowed to look"', async () => {
+    const denied = await startFakeS3({
+      buckets: ['locked'],
+      objects: { 'locked/a.txt': 'a' },
+      policyDenied: ['locked'],
+      encryptionDenied: ['locked']
+    })
+    const resolver = createCredentialResolver()
+    const isolated = new S3ObjectStorage(new S3ClientFactory(resolver), resolver)
+
+    const connection = { ...connectionFor(server), endpoint: denied.url, id: 'denied' }
+    const settings = await isolated.getBucketSettings(connection, 'locked')
+
+    // The distinction matters: one means ask an administrator, the other means nothing
+    // is set. They look identical in the raw response.
+    expect(settings.policyDenied).toBe(true)
+    expect(settings.policy).toBeNull()
+
+    isolated.dispose()
+    await denied.close()
+  })
+
+  it('reports a policy that exists, and versioning', async () => {
+    const configured = await startFakeS3({
+      buckets: ['open'],
+      policies: { open: '{"Version":"2012-10-17","Statement":[]}' },
+      versioning: { open: 'Enabled' }
+    })
+    const resolver = createCredentialResolver()
+    const isolated = new S3ObjectStorage(new S3ClientFactory(resolver), resolver)
+
+    const connection = { ...connectionFor(server), endpoint: configured.url, id: 'open' }
+    const settings = await isolated.getBucketSettings(connection, 'open')
+
+    expect(settings.policyDenied).toBe(false)
+    expect(settings.policy).toContain('2012-10-17')
+    expect(settings.versioning).toBe('Enabled')
+    expect(settings.publicAccess?.blockPublicAcls).toBe(true)
+
+    isolated.dispose()
+    await configured.close()
+  })
+
+  it('refuses a policy that is not valid JSON, without sending it', async () => {
+    const buckets = new BucketService(repositoryFor(connectionFor(server)) as never, storage)
+
+    await expect(buckets.setPolicy('test', 'test-bucket', '{ not json')).rejects.toThrow(
+      /valid JSON/i
+    )
+    await expect(buckets.setPolicy('test', 'test-bucket', '{"Version":"2012-10-17"}')).rejects.toThrow(
+      /Statement array/i
+    )
+  })
+})

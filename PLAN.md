@@ -76,9 +76,9 @@ without them.
 
 | Feature | Effort | Notes |
 | --- | --- | --- |
-| Bucket policy viewer and editor | M | Read-only view is most of the value |
+| Bucket policy viewer and editor | M | Read, and edit behind a deliberate step — **done** |
 | Lifecycle rules | M | Read, then guided editing |
-| Encryption and public access settings | S | Partly built already |
+| Encryption, versioning, public access | S | Shown in bucket settings — **done** |
 | CORS, logging, requester pays | S | One settings surface |
 | Static website hosting | S | Pairs with default HTTP headers |
 

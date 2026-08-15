@@ -7,7 +7,13 @@ import {
   CopyObjectCommand,
   CreateBucketCommand,
   DeleteBucketCommand,
+  DeleteBucketPolicyCommand,
   DeleteObjectCommand,
+  GetBucketPolicyCommand,
+  GetBucketVersioningCommand,
+  GetPublicAccessBlockCommand,
+  PutBucketPolicyCommand,
+  PutBucketVersioningCommand,
   GetObjectTaggingCommand,
   ListObjectVersionsCommand,
   PutObjectTaggingCommand,
@@ -25,6 +31,7 @@ import { Upload } from '@aws-sdk/lib-storage'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import type {
   Bucket,
+  BucketSettings,
   Connection,
   ListObjectsRequest,
   ListingPage,
@@ -538,6 +545,90 @@ export class S3ObjectStorage implements ObjectStorage {
         Bucket: bucket,
         Key: key,
         RestoreRequest: { Days: days, GlacierJobParameters: { Tier: tier as never } }
+      })
+    )
+  }
+
+  /**
+   * Reads the bucket's administrative settings.
+   *
+   * Each call is made and caught independently: these permissions are granted piecemeal,
+   * and one refusal must not hide the settings the user can actually see. A denial is
+   * reported as a denial — "not allowed to look" and "not configured" look identical in
+   * the response otherwise, and they lead to opposite conclusions when someone is trying
+   * to work out why an upload was refused.
+   */
+  async getBucketSettings(connection: Connection, bucket: string): Promise<BucketSettings> {
+    const client = await this.factory.forBucket(connection, bucket)
+
+    const settings: BucketSettings = {
+      policy: null,
+      policyDenied: false,
+      versioning: 'Disabled',
+      versioningDenied: false,
+      publicAccess: null,
+      publicAccessDenied: false,
+      encryption: null,
+      encryptionDenied: false
+    }
+
+    try {
+      const result = await client.send(new GetBucketPolicyCommand({ Bucket: bucket }))
+      settings.policy = result.Policy ?? null
+    } catch (error) {
+      // No policy at all is a normal state and reports its own code.
+      settings.policyDenied = (error as { name?: string }).name !== 'NoSuchBucketPolicy'
+    }
+
+    try {
+      const result = await client.send(new GetBucketVersioningCommand({ Bucket: bucket }))
+      settings.versioning = (result.Status as BucketSettings['versioning']) ?? 'Disabled'
+    } catch {
+      settings.versioning = 'Unknown'
+      settings.versioningDenied = true
+    }
+
+    try {
+      const result = await client.send(new GetPublicAccessBlockCommand({ Bucket: bucket }))
+      const block = result.PublicAccessBlockConfiguration
+      settings.publicAccess = {
+        blockPublicAcls: block?.BlockPublicAcls ?? false,
+        ignorePublicAcls: block?.IgnorePublicAcls ?? false,
+        blockPublicPolicy: block?.BlockPublicPolicy ?? false,
+        restrictPublicBuckets: block?.RestrictPublicBuckets ?? false
+      }
+    } catch (error) {
+      settings.publicAccessDenied =
+        (error as { name?: string }).name !== 'NoSuchPublicAccessBlockConfiguration'
+    }
+
+    settings.encryption = await this.getDefaultEncryption(connection, bucket)
+    settings.encryptionDenied = settings.encryption === null
+
+    return settings
+  }
+
+  async putBucketPolicy(
+    connection: Connection,
+    bucket: string,
+    policy: string | null
+  ): Promise<void> {
+    const client = await this.factory.forBucket(connection, bucket)
+
+    if (policy === null) {
+      await client.send(new DeleteBucketPolicyCommand({ Bucket: bucket }))
+      return
+    }
+    await client.send(new PutBucketPolicyCommand({ Bucket: bucket, Policy: policy }))
+  }
+
+  async setVersioning(connection: Connection, bucket: string, enabled: boolean): Promise<void> {
+    const client = await this.factory.forBucket(connection, bucket)
+    await client.send(
+      new PutBucketVersioningCommand({
+        Bucket: bucket,
+        // S3 has no "off": versioning is suspended, and existing versions remain.
+        VersioningConfiguration: { Status: enabled ? 'Enabled' : 'Suspended' }
       })
     )
   }

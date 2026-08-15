@@ -20,6 +20,12 @@ export interface FakeS3Options {
   encryption?: Record<string, { algorithm: string; kmsKeyId?: string }>
   /** Buckets whose GetBucketEncryption is denied, as a real policy often does. */
   encryptionDenied?: string[]
+  /** Bucket policies, as JSON strings. */
+  policies?: Record<string, string>
+  /** Buckets whose GetBucketPolicy is denied, which is the common case for a user. */
+  policyDenied?: string[]
+  /** Versioning status per bucket. */
+  versioning?: Record<string, 'Enabled' | 'Suspended'>
 }
 
 export interface FakeS3 {
@@ -96,6 +102,39 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
       // GetBucketLocation
       if (request.method === 'GET' && url.searchParams.has('location')) {
         return send(200, xml('<LocationConstraint>eu-west-1</LocationConstraint>'))
+      }
+
+      // GetBucketPolicy
+      if (request.method === 'GET' && url.searchParams.has('policy')) {
+        if (options.policyDenied?.includes(bucket)) {
+          return send(403, xml('<Error><Code>AccessDenied</Code></Error>'))
+        }
+        const policy = options.policies?.[bucket]
+        if (!policy) return send(404, xml('<Error><Code>NoSuchBucketPolicy</Code></Error>'))
+        return send(200, policy, { 'Content-Type': 'application/json' })
+      }
+
+      // GetBucketVersioning
+      if (request.method === 'GET' && url.searchParams.has('versioning')) {
+        const status = options.versioning?.[bucket]
+        return send(
+          200,
+          xml(
+            `<VersioningConfiguration>${status ? `<Status>${status}</Status>` : ''}</VersioningConfiguration>`
+          )
+        )
+      }
+
+      // GetPublicAccessBlock
+      if (request.method === 'GET' && url.searchParams.has('publicAccessBlock')) {
+        return send(
+          200,
+          xml(
+            '<PublicAccessBlockConfiguration><BlockPublicAcls>true</BlockPublicAcls>' +
+              '<IgnorePublicAcls>true</IgnorePublicAcls><BlockPublicPolicy>false</BlockPublicPolicy>' +
+              '<RestrictPublicBuckets>false</RestrictPublicBuckets></PublicAccessBlockConfiguration>'
+          )
+        )
       }
 
       // GetBucketEncryption

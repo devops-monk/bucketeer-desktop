@@ -1,4 +1,5 @@
 import type {
+  BucketSettings,
   CopyResult,
   CreateBucketRequest,
   DeleteBucketRequest,
@@ -22,6 +23,42 @@ export class BucketService {
     private readonly repository: ConnectionRepository,
     private readonly storage: ObjectStorage
   ) {}
+
+  async settings(connectionId: string, bucket: string): Promise<BucketSettings> {
+    return this.storage.getBucketSettings(await this.repository.get(connectionId), bucket)
+  }
+
+  /**
+   * Replaces or removes the bucket policy.
+   *
+   * Validated as JSON here, because S3's rejection of malformed policy documents is
+   * cryptic, and because a policy is the one setting where a mistake locks everybody —
+   * including the person making it — out of the bucket.
+   */
+  async setPolicy(connectionId: string, bucket: string, policy: string | null): Promise<void> {
+    if (policy !== null) {
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(policy)
+      } catch {
+        throw new BucketeerError('That is not valid JSON.', 'InvalidPolicy')
+      }
+
+      const document = parsed as { Statement?: unknown[]; Version?: string }
+      if (!document || !Array.isArray(document.Statement)) {
+        throw new BucketeerError(
+          'A bucket policy needs a Statement array. Nothing has been changed.',
+          'InvalidPolicy'
+        )
+      }
+    }
+
+    await this.storage.putBucketPolicy(await this.repository.get(connectionId), bucket, policy)
+  }
+
+  async setVersioning(connectionId: string, bucket: string, enabled: boolean): Promise<void> {
+    await this.storage.setVersioning(await this.repository.get(connectionId), bucket, enabled)
+  }
 
   async create(request: CreateBucketRequest): Promise<void> {
     const name = request.name.trim().toLowerCase()

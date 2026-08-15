@@ -1,6 +1,7 @@
 import type { AwsCredentialIdentityProvider } from '@aws-sdk/types'
 import type {
   Bucket,
+  BucketSettings,
   Connection,
   CredentialKind,
   CredentialSource,
@@ -122,6 +123,12 @@ export interface ObjectStorage {
     target: { bucket: string; key: string },
     options?: { storageClass?: string; kmsKeyId?: string }
   ): Promise<void>
+  /** Administrative settings, each read independently so one refusal hides only itself. */
+  getBucketSettings(connection: Connection, bucket: string): Promise<BucketSettings>
+  /** Replaces the bucket policy. Passing null removes it entirely. */
+  putBucketPolicy(connection: Connection, bucket: string, policy: string | null): Promise<void>
+  setVersioning(connection: Connection, bucket: string, enabled: boolean): Promise<void>
+
   /** Creates a bucket, in the connection's region unless told otherwise. */
   createBucket(connection: Connection, name: string, region?: string): Promise<void>
   /** Deletes an empty bucket. S3 refuses while anything remains inside it. */
