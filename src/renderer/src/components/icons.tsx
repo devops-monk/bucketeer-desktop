@@ -177,3 +177,14 @@ export function ArchiveIcon({ className }: IconProps) {
     </Svg>
   )
 }
+
+export function SyncIcon({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M2.75 8a5.25 5.25 0 0 1 8.9-3.78" />
+      <path d="M11.75 1.9v2.6h-2.6" />
+      <path d="M13.25 8a5.25 5.25 0 0 1-8.9 3.78" />
+      <path d="M4.25 14.1v-2.6h2.6" />
+    </Svg>
+  )
+}

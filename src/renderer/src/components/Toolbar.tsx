@@ -5,6 +5,7 @@ import { useSession } from '../store/session'
 import type { BucketEncryption, UploadEncryption } from '@shared/types'
 import { ConfirmDialog, LinkDialog, PromptDialog, StorageClassDialog } from './dialogs'
 import { DestinationDialog } from './DestinationDialog'
+import { SyncDialog } from './SyncDialog'
 import { UploadDialog } from './UploadDialog'
 import {
   ArchiveIcon,
@@ -12,6 +13,7 @@ import {
   DownloadIcon,
   KeyIcon,
   MoveIcon,
+  SyncIcon,
   LinkIcon,
   NewFolderIcon,
   RenameIcon,
@@ -43,7 +45,7 @@ export function Toolbar() {
   const refresh = useSession((state) => state.refresh)
 
   const [dialog, setDialog] = useState<
-    'folder' | 'rename' | 'delete' | 'copy' | 'move' | 'class' | null
+    'folder' | 'rename' | 'delete' | 'copy' | 'move' | 'class' | 'sync' | null
   >(null)
   const [link, setLink] = useState<string | null>(null)
   const [chooserOpen, setChooserOpen] = useState(false)
@@ -266,6 +268,15 @@ export function Toolbar() {
             Download
           </Button>
         </Tooltip>
+        <Tooltip
+          label="Upload only what is new or changed from a local folder"
+          side="bottom"
+        >
+          <Button variant="secondary" onClick={() => setDialog('sync')}>
+            <SyncIcon />
+            Sync
+          </Button>
+        </Tooltip>
         <span className="mx-1.5 h-4 w-px bg-line" aria-hidden />
         <Tooltip label="Create an empty folder here" side="bottom">
           <Button onClick={() => setDialog('folder')}>
@@ -438,6 +449,8 @@ export function Toolbar() {
           onCancel={() => setDialog(null)}
         />
       ) : null}
+
+      {dialog === 'sync' ? <SyncDialog onClose={() => setDialog(null)} /> : null}
 
       {chooserOpen ? (
         <UploadDialog

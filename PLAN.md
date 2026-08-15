@@ -45,21 +45,22 @@ without them.
 
 | Feature | Effort | Notes |
 | --- | --- | --- |
-| Test suite in CI | S | Vitest, plus the local S3 stub already written |
-| Virtualized object list | S | A folder of 10k keys renders 10k rows today |
+| Test suite in CI | S | Vitest against a local S3 stub, or LocalStack — **done** |
+| Virtualized object list | S | **done** |
 | Pause and resume transfers | L | Persist UploadId and completed parts across restarts |
-| Integrity checking | S | SDK flexible checksums, CRC32C |
-| Auto-update and notarization | M | Needs an Apple Developer ID |
+| Integrity checking | S | SDK flexible checksums, CRC32C — **done** |
+| Auto-update, Windows and Linux | M | macOS is blocked, see below |
 
 ### v0.5 — The everyday jobs
 
 | Feature | Effort | Notes |
 | --- | --- | --- |
-| Folder sync | L | Upload only new and changed, by size, mtime and ETag |
-| Copy and move between buckets and accounts | M | Server-side copy; multipart copy above 5 GB |
-| Include and exclude filters | S | Glob patterns, saved per connection |
-| Storage classes | S | On upload and changed in bulk afterwards |
-| Create and delete buckets | S | With region and encryption defaults |
+| Folder sync | L | Upload only new and changed, by size, hash and mtime — **done** |
+| Copy and move between buckets | M | Server-side, within and across buckets — **done** |
+| Include and exclude filters | S | Glob patterns in the sync dialog — **done** |
+| Storage classes | S | Changed in bulk on existing objects — **done** |
+| Create and delete buckets | S | **done** |
+| Copy between *accounts* | M | Streams through the app; needs two connections |
 
 ### v0.6 — Working on objects
 
@@ -123,9 +124,22 @@ Each of these appears in CS Browser's feature list. Leaving them out is a decisi
 - **Signature Version 2** — the AWS SDK v3 does not implement it and AWS retired it years
   ago. Supporting it would mean a second signing implementation.
 
-## Known gaps
+## Blocked
 
-- macOS builds are ad-hoc signed but **not notarized**, so Gatekeeper warns on first open.
+**macOS notarization, and therefore macOS auto-update.** Notarizing requires membership
+of the Apple Developer Program, which costs $99 a year and is not available here. Two
+consequences, both permanent until that changes:
+
+- Every macOS user sees "Apple cannot check it for malicious software" on first open, and
+  has to right-click → Open once. The release notes explain this.
+- Auto-update cannot work on macOS: Squirrel.Mac verifies the signature of an update and
+  refuses an unsigned one. Windows and Linux auto-update are unaffected and are still
+  worth building.
+
+An alternative, if the warning becomes a real obstacle: distribute macOS builds through
+Homebrew Cask, where `brew install --cask` removes the quarantine attribute itself.
+
+## Known gaps
 - Uploads and downloads do not resume after a restart.
-- The object list is not virtualized.
-- There is no automated test suite in CI.
+- Sync is one-way, local to remote. Remote to local is not built.
+- Everything is verified against a local S3 stub; nothing has been run against real AWS.

@@ -65,6 +65,11 @@ export const api = {
     setStorageClass: (...args: Parameters<typeof bridge.objects.setStorageClass>) =>
       unwrap(bridge.objects.setStorageClass(...args))
   },
+  sync: {
+    analyze: (...args: Parameters<typeof bridge.sync.analyze>) =>
+      unwrap(bridge.sync.analyze(...args)),
+    apply: (...args: Parameters<typeof bridge.sync.apply>) => unwrap(bridge.sync.apply(...args))
+  },
   transfers: {
     upload: (...args: Parameters<typeof bridge.transfers.upload>) =>
       unwrap(bridge.transfers.upload(...args)),

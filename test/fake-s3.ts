@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
@@ -31,6 +32,8 @@ export interface FakeS3 {
 }
 
 const xml = (body: string) => `<?xml version="1.0" encoding="UTF-8"?>${body}`
+/** Real S3 returns the MD5 of the contents for a single-part object, and sync relies on it. */
+const etagOf = (body: Buffer) => createHash('md5').update(body).digest('hex')
 const escape = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
@@ -164,7 +167,8 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
                   return (
                     `<Contents><Key>${escape(name)}</Key><Size>${entry.body.length}</Size>` +
                     `<LastModified>${entry.modified.toISOString()}</LastModified>` +
-                    `<ETag>&quot;etag&quot;</ETag><StorageClass>STANDARD</StorageClass></Contents>`
+                    `<ETag>&quot;${etagOf(entry.body)}&quot;</ETag>` +
+                    `<StorageClass>STANDARD</StorageClass></Contents>`
                   )
                 })
                 .join('') +
@@ -183,13 +187,17 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
         const entry = objects.get(`${sourceBucket}/${rest.join('/')}`)
         if (!entry) return send(404, xml('<Error><Code>NoSuchKey</Code></Error>'))
         objects.set(`${bucket}/${key}`, { body: entry.body, modified: new Date() })
-        return send(200, xml('<CopyObjectResult><ETag>&quot;etag&quot;</ETag></CopyObjectResult>'))
+        return send(
+          200,
+          xml(`<CopyObjectResult><ETag>&quot;${etagOf(entry.body)}&quot;</ETag></CopyObjectResult>`)
+        )
       }
 
       // PutObject
       if (request.method === 'PUT' && bucket && key) {
-        objects.set(`${bucket}/${key}`, { body: await readBody(), modified: new Date() })
-        return send(200, '', { ETag: '"etag"' })
+        const body = await readBody()
+        objects.set(`${bucket}/${key}`, { body, modified: new Date() })
+        return send(200, '', { ETag: `"${etagOf(body)}"` })
       }
 
       // HeadObject
@@ -200,7 +208,7 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
         return send(200, '', {
           'Content-Length': String(entry.body.length),
           'Last-Modified': entry.modified.toUTCString(),
-          ETag: '"etag"',
+          ETag: `"${etagOf(entry.body)}"`,
           ...(configured
             ? {
                 'x-amz-server-side-encryption': configured.algorithm,

@@ -207,6 +207,31 @@ export interface DownloadRequest {
   destination: string
 }
 
+/** A one-way sync from a local folder into a bucket prefix. */
+export interface SyncRequest {
+  connectionId: string
+  bucket: string
+  /** Where in the bucket the folder's contents land. */
+  prefix: string
+  localPath: string
+  /** Delete objects that no longer exist locally. Off unless asked for. */
+  deleteRemote: boolean
+  /** Only these are considered, when given. */
+  include?: string[]
+  /** These are never considered, even if included. */
+  exclude?: string[]
+  encryption?: UploadEncryption
+}
+
+export interface SyncPlan {
+  upload: Array<{ localPath: string; key: string; size: number; reason: 'new' | 'changed' }>
+  unchanged: number
+  /** Files skipped by the include and exclude rules. */
+  filtered: number
+  deleteRemote: Array<{ key: string; size: number }>
+  uploadBytes: number
+}
+
 export interface DeleteRequest {
   connectionId: string
   bucket: string

@@ -21,6 +21,8 @@ import type {
   Result,
   SsoLoginResult,
   SsoPending,
+  SyncPlan,
+  SyncRequest,
   ThemePreference,
   Transfer,
   UploadRequest
@@ -50,6 +52,8 @@ export const Channels = {
   bucketsDelete: 'buckets:delete',
   objectsCopy: 'objects:copy',
   objectsStorageClass: 'objects:storage-class',
+  syncAnalyze: 'sync:analyze',
+  syncApply: 'sync:apply',
   transfersUpload: 'transfers:upload',
   transfersDownload: 'transfers:download',
   transfersList: 'transfers:list',
@@ -114,6 +118,11 @@ export interface BucketeerApi {
     /** Server-side copy or move, within a bucket or across buckets. */
     copy(request: TransferObjectsRequest): Promise<Result<CopyResult>>
     setStorageClass(request: SetStorageClassRequest): Promise<Result<CopyResult>>
+  }
+  sync: {
+    /** Works out what would change, without changing anything. */
+    analyze(request: SyncRequest): Promise<Result<SyncPlan>>
+    apply(request: SyncRequest, plan: SyncPlan): Promise<Result<{ queued: number; deleted: number }>>
   }
   transfers: {
     upload(request: UploadRequest): Promise<Result<number>>

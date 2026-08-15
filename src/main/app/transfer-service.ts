@@ -1,6 +1,12 @@
 import { readdir, stat } from 'node:fs/promises'
 import { basename, join, posix, relative, sep } from 'node:path'
-import type { DownloadRequest, Transfer, UploadRequest } from '@shared/types'
+import type {
+  Connection,
+  DownloadRequest,
+  Transfer,
+  UploadEncryption,
+  UploadRequest
+} from '@shared/types'
 import type {
   Clock,
   ConnectionRepository,
@@ -50,23 +56,11 @@ export class TransferService {
    */
   async upload(request: UploadRequest): Promise<number> {
     const connection = await this.repository.get(request.connectionId)
-    const encryption = request.encryption ?? { mode: 'auto' }
-
-    let kmsKeyId: string | undefined
-    if (encryption.mode === 'kms') {
-      kmsKeyId = encryption.kmsKeyId
-    } else if (encryption.mode === 'auto') {
-      kmsKeyId = connection.kmsKeyId
-
-      // Fall back to the bucket's own default key. Buckets that mandate SSE-KMS through
-      // a policy reject uploads that omit the headers, even though default encryption
-      // would have applied the very same key — the policy is evaluated on the request,
-      // not the result. Reading the default spares the user looking the ARN up by hand.
-      if (!kmsKeyId) {
-        const fallback = await this.storage.getDefaultEncryption(connection, request.bucket)
-        if (fallback?.sseAlgorithm === 'aws:kms' && fallback.kmsKeyId) kmsKeyId = fallback.kmsKeyId
-      }
-    }
+    const kmsKeyId = await this.resolveKey(
+      connection,
+      request.bucket,
+      request.encryption ?? { mode: 'auto' }
+    )
 
     const files: Array<{ localPath: string; key: string; size: number }> = []
     for (const path of request.paths) {
@@ -90,6 +84,50 @@ export class TransferService {
 
       void this.execute(transfer, (controller) =>
         this.storage.putObject(connection, request.bucket, file.key, file.localPath, {
+          kmsKeyId,
+          signal: controller.signal,
+          onProgress: (transferred, total) => this.progress(transfer.id, transferred, total)
+        })
+      )
+    }
+
+    this.flush()
+    return files.length
+  }
+
+  /**
+   * Queues files whose keys are already decided, as a sync does.
+   *
+   * Separate from upload() because that one walks directories and derives keys from
+   * paths; a sync has already worked out exactly what goes where and must not have that
+   * re-derived underneath it.
+   */
+  async uploadExact(
+    connectionId: string,
+    bucket: string,
+    files: Array<{ localPath: string; key: string; size: number }>,
+    encryption?: UploadEncryption
+  ): Promise<number> {
+    const connection = await this.repository.get(connectionId)
+    const kmsKeyId = await this.resolveKey(connection, bucket, encryption ?? { mode: 'auto' })
+
+    for (const file of files) {
+      const transfer: Transfer = {
+        id: this.ids.next(),
+        kind: 'upload',
+        name: basename(file.localPath),
+        bucket,
+        key: file.key,
+        localPath: file.localPath,
+        size: file.size,
+        transferred: 0,
+        status: 'queued',
+        kmsKeyId
+      }
+      this.track(transfer)
+
+      void this.execute(transfer, (controller) =>
+        this.storage.putObject(connection, bucket, file.key, file.localPath, {
           kmsKeyId,
           signal: controller.signal,
           onProgress: (transferred, total) => this.progress(transfer.id, transferred, total)
@@ -156,6 +194,24 @@ export class TransferService {
 
     this.flush()
     return targets.length
+  }
+
+  /**
+   * Works out which key encrypts a batch: an explicit choice, the connection's key, or
+   * the bucket's own — the last of which is what makes uploads work on buckets that
+   * mandate SSE-KMS without anyone having to find an ARN.
+   */
+  private async resolveKey(
+    connection: Connection,
+    bucket: string,
+    encryption: UploadEncryption
+  ): Promise<string | undefined> {
+    if (encryption.mode === 'none') return undefined
+    if (encryption.mode === 'kms') return encryption.kmsKeyId
+
+    if (connection.kmsKeyId) return connection.kmsKeyId
+    const fallback = await this.storage.getDefaultEncryption(connection, bucket)
+    return fallback?.sseAlgorithm === 'aws:kms' ? fallback.kmsKeyId : undefined
   }
 
   cancel(id: string): void {

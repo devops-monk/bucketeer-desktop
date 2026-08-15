@@ -13,6 +13,8 @@ import type {
   PresignRequest,
   RenameRequest,
   SsoPending,
+  SyncPlan,
+  SyncRequest,
   ThemePreference,
   Transfer,
   UploadRequest
@@ -61,6 +63,11 @@ const api: BucketeerApi = {
     copy: (request: TransferObjectsRequest) => ipcRenderer.invoke(Channels.objectsCopy, request),
     setStorageClass: (request: SetStorageClassRequest) =>
       ipcRenderer.invoke(Channels.objectsStorageClass, request)
+  },
+  sync: {
+    analyze: (request: SyncRequest) => ipcRenderer.invoke(Channels.syncAnalyze, request),
+    apply: (request: SyncRequest, plan: SyncPlan) =>
+      ipcRenderer.invoke(Channels.syncApply, request, plan)
   },
   transfers: {
     upload: (request: UploadRequest) => ipcRenderer.invoke(Channels.transfersUpload, request),

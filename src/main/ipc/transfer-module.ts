@@ -1,12 +1,16 @@
 import { dialog } from 'electron'
 import { Channels } from '@shared/ipc'
-import type { DownloadRequest, UploadRequest } from '@shared/types'
+import type { DownloadRequest, SyncPlan, SyncRequest, UploadRequest } from '@shared/types'
+import type { SyncService } from '../app/sync-service'
 import type { TransferService } from '../app/transfer-service'
 import type { IpcModule, IpcRouter } from './router'
 
 /** Channels for moving files, plus the native pickers those flows need. */
 export class TransferModule implements IpcModule {
-  constructor(private readonly service: TransferService) {}
+  constructor(
+    private readonly service: TransferService,
+    private readonly sync: SyncService
+  ) {}
 
   register(router: IpcRouter): void {
     router.handle(Channels.transfersUpload, (request: UploadRequest) => this.service.upload(request))
@@ -16,6 +20,10 @@ export class TransferModule implements IpcModule {
     router.handle(Channels.transfersList, () => this.service.list())
     router.handle(Channels.transfersCancel, (id: string) => this.service.cancel(id))
     router.handle(Channels.transfersClearFinished, () => this.service.clearFinished())
+    router.handle(Channels.syncAnalyze, (request: SyncRequest) => this.sync.analyze(request))
+    router.handle(Channels.syncApply, (request: SyncRequest, plan: SyncPlan) =>
+      this.sync.apply(request, plan)
+    )
 
     // The pickers live here because the renderer is sandboxed and cannot open a native
     // dialog itself — and because a path chosen by the user is what makes a transfer legal.

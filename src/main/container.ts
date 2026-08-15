@@ -4,6 +4,7 @@ import { BrowsingService } from './app/browsing-service'
 import { BucketService } from './app/bucket-service'
 import { ConnectionService } from './app/connection-service'
 import { ObjectService } from './app/object-service'
+import { SyncService } from './app/sync-service'
 import { TransferService } from './app/transfer-service'
 import type { Clock, IdGenerator, ObjectStorage } from './core/ports'
 import { FileConnectionRepository } from './infra/connection-repository'
@@ -75,6 +76,8 @@ export function createContainer(): Container {
     systemClock
   )
 
+  const sync = new SyncService(repository, storage, transfers)
+
   return {
     settings,
     connections,
@@ -88,7 +91,7 @@ export function createContainer(): Container {
         new ConnectionModule(connections),
         new BrowsingModule(browsing),
         new ObjectModule(objects, buckets),
-        new TransferModule(transfers),
+        new TransferModule(transfers, sync),
         new AppModule(settings)
       ]
       for (const module of modules) module.register(router)
