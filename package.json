@@ -1,6 +1,6 @@
 {
   "name": "bucketeer-desktop",
-  "version": "0.3.0",
+  "version": "0.9.0",
   "description": "An open-source desktop client for Amazon S3 and S3-compatible storage",
   "productName": "Bucketeer",
   "main": "./out/main/index.js",
