@@ -1,0 +1,42 @@
+appId: app.bucketeer.desktop
+productName: Bucketeer
+copyright: Copyright © 2026 Bucketeer contributors
+
+directories:
+  buildResources: build
+  output: release
+
+files:
+  - out/**
+  - package.json
+
+# The AWS SDK is bundled into the main chunk, so nothing needs unpacking at runtime.
+asar: true
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  # Network access for S3 and STS; the sandbox denies it by default.
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  hardenedRuntime: true
+  gatekeeperAssess: false
+
+win:
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  category: Development
+  target:
+    - AppImage
+    - deb

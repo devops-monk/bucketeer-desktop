@@ -1,0 +1,44 @@
+{
+  "name": "bucketeer-desktop",
+  "version": "0.0.1",
+  "description": "An open-source desktop client for Amazon S3 and S3-compatible storage",
+  "productName": "Bucketeer",
+  "main": "./out/main/index.js",
+  "author": "devops-monk",
+  "homepage": "https://github.com/devops-monk/bucketeer-desktop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build": "npm run typecheck && electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "pack:mac": "npm run build && electron-builder --mac",
+    "pack:win": "npm run build && electron-builder --win",
+    "pack:linux": "npm run build && electron-builder --linux"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1111.0",
+    "@aws-sdk/client-sts": "^3.1111.0",
+    "@aws-sdk/credential-providers": "^3.1111.0",
+    "@aws-sdk/lib-storage": "^3.1111.0",
+    "@aws-sdk/s3-request-presigner": "^3.1111.0",
+    "@aws-sdk/types": "^3.974.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zustand": "^5.0.15"
+  }
+}

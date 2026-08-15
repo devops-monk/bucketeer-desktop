@@ -3,10 +3,9 @@ node_modules/
 .pnp
 .pnp.js
 
-# Build output
+# Build output — note `build/` is NOT ignored: it holds electron-builder resources.
 dist/
 out/
-build/
 release/
 *.tsbuildinfo
 
@@ -25,7 +24,9 @@ release/
 !.env.example
 *.pem
 *.p12
-credentials
+# Anchored: an AWS credentials file dropped at the repo root, not the source directory
+# of the same name.
+/credentials
 
 # Logs
 *.log
