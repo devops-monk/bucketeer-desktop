@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { S3Object, S3Prefix } from '@shared/types'
-import { extensionOf, formatBytes, formatStorageClass, formatTimestamp } from '../lib/format'
+import {
+  extensionOf,
+  formatBytes,
+  formatStorageClass,
+  formatTimestamp,
+  isDefaultStorageClass
+} from '../lib/format'
 import { useSession } from '../store/session'
 import { FileIcon, FolderIcon } from './icons'
 import { Button, Tooltip } from './primitives'
@@ -342,6 +348,7 @@ function ObjectRow({
   onOpen: () => void
 }) {
   const storageClass = formatStorageClass(object.storageClass)
+  const isDefault = isDefaultStorageClass(object.storageClass)
   const extension = extensionOf(object.name)
 
   return (
@@ -378,11 +385,15 @@ function ObjectRow({
         {formatTimestamp(object.lastModified)}
       </td>
       <td className="px-3 py-2 pr-5 text-right">
-        {storageClass ? (
-          <span className="tabular text-[10px] tracking-wide text-accent-ink uppercase">
-            {storageClass}
-          </span>
-        ) : null}
+        {/* The default is stated quietly; anything else is worth noticing, because it
+            changes what retrieval costs and whether the object can be read at all. */}
+        <span
+          className={`tabular text-[10px] tracking-wide uppercase ${
+            isDefault ? 'text-faint' : 'text-accent-ink'
+          }`}
+        >
+          {storageClass}
+        </span>
       </td>
     </tr>
   )

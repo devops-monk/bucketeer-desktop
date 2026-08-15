@@ -51,10 +51,34 @@ export function formatFullTimestamp(iso: string | undefined): string {
   return Number.isNaN(date.getTime()) ? 'Unknown' : `${DATE.format(date)} ${TIME.format(date)}`
 }
 
-/** STANDARD is the default and saying so adds nothing; anything else is worth flagging. */
-export function formatStorageClass(storageClass: string | undefined): string | null {
-  if (!storageClass || storageClass === 'STANDARD') return null
-  return storageClass.replace(/_/g, ' ').toLowerCase()
+/**
+ * Shortens a storage class for a narrow column.
+ *
+ * Every object gets one, including the default: leaving Standard blank made the column
+ * look like missing data in the common case where a whole bucket is Standard. It is
+ * rendered quietly instead, so anything unusual still stands out.
+ */
+export function formatStorageClass(storageClass: string | undefined): string {
+  if (!storageClass) return 'standard'
+
+  const shortened: Record<string, string> = {
+    STANDARD: 'standard',
+    STANDARD_IA: 'standard-ia',
+    ONEZONE_IA: 'onezone-ia',
+    INTELLIGENT_TIERING: 'intelligent',
+    GLACIER_IR: 'glacier-ir',
+    GLACIER: 'glacier',
+    DEEP_ARCHIVE: 'deep archive',
+    REDUCED_REDUNDANCY: 'reduced',
+    OUTPOSTS: 'outposts',
+    EXPRESS_ONEZONE: 'express'
+  }
+  return shortened[storageClass] ?? storageClass.replace(/_/g, ' ').toLowerCase()
+}
+
+/** True for the class objects get when nobody chose one. */
+export function isDefaultStorageClass(storageClass: string | undefined): boolean {
+  return !storageClass || storageClass === 'STANDARD'
 }
 
 /** Splits a prefix into breadcrumb segments, each carrying its own full prefix. */

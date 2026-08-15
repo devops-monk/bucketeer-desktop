@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Transfer } from '@shared/types'
 import { shouldReload } from '../src/renderer/src/lib/auto-refresh'
+import { formatStorageClass, isDefaultStorageClass } from '../src/renderer/src/lib/format'
 
 /**
  * The rules that decide whether a finished upload reloads the listing. Worth testing
@@ -64,5 +65,29 @@ describe('shouldReload', () => {
     const result = shouldReload([transfer()], null, new Set())
     expect(result.reload).toBe(false)
     expect(result.accounted).toContain('t1')
+  })
+})
+
+describe('storage class labels', () => {
+  it('always names a class, including the default', () => {
+    // Leaving the default blank made the column look like missing data.
+    expect(formatStorageClass(undefined)).toBe('standard')
+    expect(formatStorageClass('STANDARD')).toBe('standard')
+  })
+
+  it('shortens the long class names to fit the column', () => {
+    expect(formatStorageClass('STANDARD_IA')).toBe('standard-ia')
+    expect(formatStorageClass('DEEP_ARCHIVE')).toBe('deep archive')
+    expect(formatStorageClass('INTELLIGENT_TIERING')).toBe('intelligent')
+  })
+
+  it('passes through a class it has never heard of', () => {
+    expect(formatStorageClass('SOME_NEW_TIER')).toBe('some new tier')
+  })
+
+  it('marks only the default as unremarkable', () => {
+    expect(isDefaultStorageClass(undefined)).toBe(true)
+    expect(isDefaultStorageClass('STANDARD')).toBe(true)
+    expect(isDefaultStorageClass('GLACIER')).toBe(false)
   })
 })
