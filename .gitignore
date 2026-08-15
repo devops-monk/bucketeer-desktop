@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+out/
+build/
+release/
+*.tsbuildinfo
+
+# Electron
+.electron-vite/
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.snap
+*.zip
+
+# Environment / secrets — never commit AWS credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+credentials
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
