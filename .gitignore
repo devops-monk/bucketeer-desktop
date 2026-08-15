@@ -46,3 +46,6 @@ Thumbs.db
 
 # Internal documents dropped into the working tree — never publish these.
 *.pdf
+
+# Worktrees Claude Code creates for isolated work; never part of the repository.
+.claude/worktrees/
