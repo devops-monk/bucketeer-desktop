@@ -51,7 +51,7 @@ export function ObjectDetails({
     detail?.storageClass === 'GLACIER' || detail?.storageClass === 'DEEP_ARCHIVE'
 
   return (
-    <aside className="flex w-96 shrink-0 flex-col border-l border-line bg-surface">
+    <aside className="relative z-10 flex w-96 shrink-0 flex-col border-l border-line bg-surface">
       <header className="flex h-11 shrink-0 items-center justify-between border-b border-line px-3">
         <span className="eyebrow">Object</span>
         <button onClick={onClose} className="text-faint hover:text-text" aria-label="Close details">

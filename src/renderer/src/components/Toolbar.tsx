@@ -322,7 +322,9 @@ export function Toolbar() {
 
   return (
     <>
-      <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line bg-surface px-3">
+      {/* Scrolls rather than spilling: with the details panel open the pane is narrow,
+          and an overflowing row painted straight over the panel beside it. */}
+      <div className="flex h-11 shrink-0 items-center gap-1 overflow-x-auto border-b border-line bg-surface px-3 [&>*]:shrink-0">
         <Tooltip label={`Send files into ${location.prefix || location.bucket}`} side="bottom">
           <Button variant="primary" onClick={() => void chooseFiles()}>
             <UploadIcon />
