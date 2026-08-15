@@ -1,10 +1,20 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { Channels, type BucketeerApi } from '@shared/ipc'
-import type { Connection, ListObjectsRequest } from '@shared/types'
+import type {
+  Connection,
+  CreateFolderRequest,
+  DeleteRequest,
+  DownloadRequest,
+  ListObjectsRequest,
+  PresignRequest,
+  RenameRequest,
+  Transfer,
+  UploadRequest
+} from '@shared/types'
 
 /**
  * The bridge. Every capability the renderer has is listed here — there is no generic
- * "invoke any channel" escape hatch, so the renderer cannot reach a channel we didn't
+ * "invoke any channel" escape hatch, so the renderer cannot reach a channel we did not
  * mean to expose.
  */
 const api: BucketeerApi = {
@@ -25,9 +35,39 @@ const api: BucketeerApi = {
   objects: {
     list: (request: ListObjectsRequest) => ipcRenderer.invoke(Channels.objectsList, request),
     head: (connectionId: string, bucket: string, key: string) =>
-      ipcRenderer.invoke(Channels.objectHead, connectionId, bucket, key)
+      ipcRenderer.invoke(Channels.objectHead, connectionId, bucket, key),
+    remove: (request: DeleteRequest) => ipcRenderer.invoke(Channels.objectsDelete, request),
+    rename: (request: RenameRequest) => ipcRenderer.invoke(Channels.objectsRename, request),
+    createFolder: (request: CreateFolderRequest) =>
+      ipcRenderer.invoke(Channels.objectsCreateFolder, request),
+    presign: (request: PresignRequest) => ipcRenderer.invoke(Channels.objectsPresign, request)
+  },
+  transfers: {
+    upload: (request: UploadRequest) => ipcRenderer.invoke(Channels.transfersUpload, request),
+    download: (request: DownloadRequest) => ipcRenderer.invoke(Channels.transfersDownload, request),
+    list: () => ipcRenderer.invoke(Channels.transfersList),
+    cancel: (id: string) => ipcRenderer.invoke(Channels.transfersCancel, id),
+    clearFinished: () => ipcRenderer.invoke(Channels.transfersClearFinished),
+    onChanged: (listener: (transfers: Transfer[]) => void) => {
+      // The event object is deliberately not passed through: it exposes the sender,
+      // which the renderer has no business holding.
+      const handler = (_event: unknown, transfers: Transfer[]) => listener(transfers)
+      ipcRenderer.on(Channels.transfersChanged, handler)
+      return () => ipcRenderer.removeListener(Channels.transfersChanged, handler)
+    }
+  },
+  dialog: {
+    pickFiles: () => ipcRenderer.invoke(Channels.dialogPickFiles),
+    pickDirectory: () => ipcRenderer.invoke(Channels.dialogPickDirectory)
   }
 }
 
 contextBridge.exposeInMainWorld('bucketeer', api)
 contextBridge.exposeInMainWorld('platform', process.platform)
+
+/**
+ * Drag-and-drop needs the real path of a dropped file, and Electron removed File.path
+ * for security. webUtils.getPathForFile is the supported replacement, and it must be
+ * called in the preload — the renderer has no access to webUtils.
+ */
+contextBridge.exposeInMainWorld('pathForFile', (file: File) => webUtils.getPathForFile(file))

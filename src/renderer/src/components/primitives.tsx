@@ -1,3 +1,4 @@
+import { forwardRef } from 'react'
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
 
 /** Shared building blocks, so spacing and states stay consistent across the app. */
@@ -8,7 +9,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export function Button({ variant = 'ghost', className = '', ...props }: ButtonProps) {
   const base =
-    'inline-flex h-7 items-center gap-1.5 rounded-[3px] px-2.5 text-[12px] transition-colors disabled:opacity-40 disabled:pointer-events-none'
+    'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] px-2.5 text-[12px] whitespace-nowrap transition-colors disabled:opacity-40 disabled:pointer-events-none'
   const variants = {
     primary: 'bg-accent text-on-accent font-medium hover:brightness-110',
     ghost: 'text-muted hover:bg-raised hover:text-text',
@@ -38,9 +39,14 @@ export function Field({
 const controlStyles =
   'h-8 w-full rounded-[3px] border border-line bg-ink px-2.5 text-[12px] text-text placeholder:text-faint focus:border-accent focus:outline-none'
 
-export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={`${controlStyles} ${className}`} spellCheck={false} {...props} />
-}
+// Forwards its ref so dialogs can focus and select the field on open.
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function Input({ className = '', ...props }, ref) {
+    return (
+      <input ref={ref} className={`${controlStyles} ${className}`} spellCheck={false} {...props} />
+    )
+  }
+)
 
 export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select className={`${controlStyles} ${className}`} {...props} />

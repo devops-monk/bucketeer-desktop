@@ -6,7 +6,9 @@ import type {
   CredentialSource,
   ListObjectsRequest,
   ListingPage,
-  ObjectDetail
+  ObjectDetail,
+  S3Object,
+  Transfer
 } from '@shared/types'
 
 /**
@@ -50,11 +52,56 @@ export interface CredentialResolver {
   describe(source: CredentialSource): string
 }
 
+/** Reports bytes moved so far for a single transfer. */
+export type ProgressReporter = (transferred: number, total?: number) => void
+
+export interface UploadOptions {
+  kmsKeyId?: string
+  contentType?: string
+  onProgress?: ProgressReporter
+  signal?: AbortSignal
+}
+
+export interface DownloadOptions {
+  onProgress?: ProgressReporter
+  signal?: AbortSignal
+}
+
 /** The storage operations the app needs, independent of S3 itself. */
 export interface ObjectStorage {
   listBuckets(connection: Connection): Promise<Bucket[]>
   listObjects(connection: Connection, request: Omit<ListObjectsRequest, 'connectionId'>): Promise<ListingPage>
   headObject(connection: Connection, bucket: string, key: string): Promise<ObjectDetail>
+
+  /** Every key under a prefix, following pagination to the end. */
+  listAllKeys(connection: Connection, bucket: string, prefix: string): Promise<S3Object[]>
+  /** Streams a local file up, using multipart when the file is large enough to need it. */
+  putObject(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    localPath: string,
+    options: UploadOptions
+  ): Promise<void>
+  /** Streams an object down to a local path, creating parent directories as needed. */
+  getObject(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    localPath: string,
+    options: DownloadOptions
+  ): Promise<void>
+  /** Batch delete. Returns the keys S3 refused, with reasons. */
+  deleteObjects(
+    connection: Connection,
+    bucket: string,
+    keys: string[]
+  ): Promise<Array<{ key: string; reason: string }>>
+  /** Server-side copy. S3 has no move, so rename is copy followed by delete. */
+  copyObject(connection: Connection, bucket: string, sourceKey: string, targetKey: string): Promise<void>
+  /** Writes the zero-byte marker object that makes an empty folder visible. */
+  createFolder(connection: Connection, bucket: string, key: string): Promise<void>
+  presign(connection: Connection, bucket: string, key: string, expiresInSeconds: number): Promise<string>
   /** Cheap round trip that proves the credentials resolve and the endpoint answers. */
   probe(connection: Connection): Promise<{ accountId?: string; buckets: number }>
   /** Drops cached clients for a connection whose credentials may have changed. */
@@ -73,4 +120,9 @@ export interface IdGenerator {
 
 export interface Clock {
   nowIso(): string
+}
+
+/** Pushes state from the main process to every open window. */
+export interface EventBroadcaster {
+  transfersChanged(transfers: Transfer[]): void
 }

@@ -99,6 +99,86 @@ export interface ObjectDetail {
   metadata?: Record<string, string>
 }
 
+export type TransferKind = 'upload' | 'download'
+
+export type TransferStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled'
+
+/** One file moving in one direction. The unit the transfer queue schedules and reports. */
+export interface Transfer {
+  id: string
+  kind: TransferKind
+  /** File name shown in the queue. */
+  name: string
+  bucket: string
+  key: string
+  localPath: string
+  /** Total bytes, or 0 when the size is not known until the transfer starts. */
+  size: number
+  transferred: number
+  status: TransferStatus
+  error?: string
+  startedAt?: string
+  finishedAt?: string
+  /** KMS key this upload is encrypted with, if any. */
+  kmsKeyId?: string
+}
+
+export interface UploadRequest {
+  connectionId: string
+  bucket: string
+  /** Prefix to upload into. Empty string means the bucket root. */
+  prefix: string
+  /** Absolute local paths. Directories are walked recursively. */
+  paths: string[]
+  /** Overrides the connection's default key for this batch. */
+  kmsKeyId?: string
+}
+
+export interface DownloadRequest {
+  connectionId: string
+  bucket: string
+  keys: string[]
+  /** Prefixes are walked recursively and recreated as folders under the destination. */
+  prefixes: string[]
+  destination: string
+}
+
+export interface DeleteRequest {
+  connectionId: string
+  bucket: string
+  keys: string[]
+  /** Deleting a prefix deletes every object beneath it. */
+  prefixes: string[]
+}
+
+export interface RenameRequest {
+  connectionId: string
+  bucket: string
+  sourceKey: string
+  targetKey: string
+}
+
+export interface CreateFolderRequest {
+  connectionId: string
+  bucket: string
+  prefix: string
+  name: string
+}
+
+export interface PresignRequest {
+  connectionId: string
+  bucket: string
+  key: string
+  expiresInSeconds: number
+}
+
+/** What a delete actually did, so the UI can report it honestly. */
+export interface DeleteResult {
+  deleted: number
+  /** Keys the service declined to delete, with the reason S3 gave. */
+  failed: Array<{ key: string; reason: string }>
+}
+
 /** Every failure that crosses IPC arrives in this shape. */
 export interface AppError {
   message: string

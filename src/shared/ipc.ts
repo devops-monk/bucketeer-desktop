@@ -2,10 +2,18 @@ import type {
   Bucket,
   Connection,
   ConnectionSummary,
+  CreateFolderRequest,
+  DeleteRequest,
+  DeleteResult,
+  DownloadRequest,
   ListObjectsRequest,
   ListingPage,
   ObjectDetail,
-  Result
+  PresignRequest,
+  RenameRequest,
+  Result,
+  Transfer,
+  UploadRequest
 } from './types'
 
 /** IPC channel names. Keep them namespaced so the preload allowlist stays readable. */
@@ -18,7 +26,20 @@ export const Channels = {
   sharedProfilesList: 'credentials:shared-profiles',
   bucketsList: 'buckets:list',
   objectsList: 'objects:list',
-  objectHead: 'objects:head'
+  objectHead: 'objects:head',
+  objectsDelete: 'objects:delete',
+  objectsRename: 'objects:rename',
+  objectsCreateFolder: 'objects:create-folder',
+  objectsPresign: 'objects:presign',
+  transfersUpload: 'transfers:upload',
+  transfersDownload: 'transfers:download',
+  transfersList: 'transfers:list',
+  transfersCancel: 'transfers:cancel',
+  transfersClearFinished: 'transfers:clear-finished',
+  /** Main → renderer: the transfer queue changed. */
+  transfersChanged: 'transfers:changed',
+  dialogPickFiles: 'dialog:pick-files',
+  dialogPickDirectory: 'dialog:pick-directory'
 } as const
 
 /**
@@ -46,5 +67,25 @@ export interface BucketeerApi {
   objects: {
     list(request: ListObjectsRequest): Promise<Result<ListingPage>>
     head(connectionId: string, bucket: string, key: string): Promise<Result<ObjectDetail>>
+    remove(request: DeleteRequest): Promise<Result<DeleteResult>>
+    /** Server-side copy then delete — S3 has no rename. */
+    rename(request: RenameRequest): Promise<Result<void>>
+    createFolder(request: CreateFolderRequest): Promise<Result<void>>
+    /** Time-limited URL anyone can use, no credentials required. */
+    presign(request: PresignRequest): Promise<Result<string>>
+  }
+  transfers: {
+    upload(request: UploadRequest): Promise<Result<number>>
+    download(request: DownloadRequest): Promise<Result<number>>
+    list(): Promise<Result<Transfer[]>>
+    cancel(id: string): Promise<Result<void>>
+    clearFinished(): Promise<Result<void>>
+    /** Subscribes to queue changes. Returns an unsubscribe function. */
+    onChanged(listener: (transfers: Transfer[]) => void): () => void
+  }
+  dialog: {
+    /** Native file picker. Empty array means the user cancelled. */
+    pickFiles(): Promise<Result<string[]>>
+    pickDirectory(): Promise<Result<string | null>>
   }
 }

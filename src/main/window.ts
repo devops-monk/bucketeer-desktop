@@ -29,6 +29,7 @@ export function createMainWindow(): BrowserWindow {
   window.once('ready-to-show', () => window.show())
 
 
+
   // A renderer that fails to load must not leave an invisible window behind: show the
   // window anyway so the failure is on screen rather than silent.
   window.webContents.on('did-fail-load', (_event, code, description, url) => {

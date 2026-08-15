@@ -43,7 +43,29 @@ export const api = {
   },
   objects: {
     list: (...args: Parameters<typeof bridge.objects.list>) => unwrap(bridge.objects.list(...args)),
-    head: (...args: Parameters<typeof bridge.objects.head>) => unwrap(bridge.objects.head(...args))
+    head: (...args: Parameters<typeof bridge.objects.head>) => unwrap(bridge.objects.head(...args)),
+    remove: (...args: Parameters<typeof bridge.objects.remove>) =>
+      unwrap(bridge.objects.remove(...args)),
+    rename: (...args: Parameters<typeof bridge.objects.rename>) =>
+      unwrap(bridge.objects.rename(...args)),
+    createFolder: (...args: Parameters<typeof bridge.objects.createFolder>) =>
+      unwrap(bridge.objects.createFolder(...args)),
+    presign: (...args: Parameters<typeof bridge.objects.presign>) =>
+      unwrap(bridge.objects.presign(...args))
+  },
+  transfers: {
+    upload: (...args: Parameters<typeof bridge.transfers.upload>) =>
+      unwrap(bridge.transfers.upload(...args)),
+    download: (...args: Parameters<typeof bridge.transfers.download>) =>
+      unwrap(bridge.transfers.download(...args)),
+    list: () => unwrap(bridge.transfers.list()),
+    cancel: (id: string) => unwrap(bridge.transfers.cancel(id)),
+    clearFinished: () => unwrap(bridge.transfers.clearFinished()),
+    onChanged: bridge.transfers.onChanged
+  },
+  dialog: {
+    pickFiles: () => unwrap(bridge.dialog.pickFiles()),
+    pickDirectory: () => unwrap(bridge.dialog.pickDirectory())
   }
 }
 

@@ -19,7 +19,12 @@ interface SessionState {
   buckets: Bucket[]
   location: Location | null
   listing: ListingPage | null
+  /** Selected object keys. */
   selection: Set<string>
+  /** Selected prefixes, which delete and download treat as whole folders. */
+  prefixSelection: Set<string>
+  /** Case-insensitive substring filter applied to the current listing. */
+  filter: string
   loading: boolean
   loadingMore: boolean
   error: string | null
@@ -33,8 +38,10 @@ interface SessionState {
   refresh: () => Promise<void>
   loadMore: () => Promise<void>
   toggleSelection: (key: string, additive: boolean) => void
+  togglePrefixSelection: (prefix: string, additive: boolean) => void
   clearSelection: () => void
   selectAll: () => void
+  setFilter: (filter: string) => void
 }
 
 export const useSession = create<SessionState>((set, get) => ({
@@ -44,6 +51,8 @@ export const useSession = create<SessionState>((set, get) => ({
   location: null,
   listing: null,
   selection: new Set(),
+  prefixSelection: new Set(),
+  filter: '',
   loading: false,
   loadingMore: false,
   error: null,
@@ -72,6 +81,8 @@ export const useSession = create<SessionState>((set, get) => ({
       location: null,
       listing: null,
       selection: new Set(),
+      prefixSelection: new Set(),
+      filter: '',
       error: null
     })
   },
@@ -93,7 +104,7 @@ export const useSession = create<SessionState>((set, get) => ({
     if (!location) return
     if (!location.prefix) {
       // Already at the bucket root: step back out to the bucket list.
-      set({ location: null, listing: null, selection: new Set() })
+      set({ location: null, listing: null, selection: new Set(), prefixSelection: new Set() })
       return
     }
     const parent = location.prefix.replace(/[^/]+\/$/, '')
@@ -104,7 +115,7 @@ export const useSession = create<SessionState>((set, get) => ({
     const { activeConnectionId, location } = get()
     if (!activeConnectionId || !location) return
 
-    set({ loading: true, error: null, selection: new Set() })
+    set({ loading: true, error: null, selection: new Set(), prefixSelection: new Set() })
     try {
       const listing = await api.objects.list({
         connectionId: activeConnectionId,
@@ -143,12 +154,29 @@ export const useSession = create<SessionState>((set, get) => ({
     }
   },
 
+  togglePrefixSelection(prefix, additive) {
+    const current = get().prefixSelection
+    if (!additive) {
+      const onlyThis = current.size === 1 && current.has(prefix)
+      set({ prefixSelection: onlyThis ? new Set() : new Set([prefix]), selection: new Set() })
+      return
+    }
+    const next = new Set(current)
+    if (next.has(prefix)) next.delete(prefix)
+    else next.add(prefix)
+    set({ prefixSelection: next })
+  },
+
+  setFilter(filter) {
+    set({ filter })
+  },
+
   toggleSelection(key, additive) {
     const current = get().selection
     if (!additive) {
       // A plain click replaces the selection unless it's already the only thing selected.
       const onlyThis = current.size === 1 && current.has(key)
-      set({ selection: onlyThis ? new Set() : new Set([key]) })
+      set({ selection: onlyThis ? new Set() : new Set([key]), prefixSelection: new Set() })
       return
     }
     const next = new Set(current)
@@ -158,7 +186,7 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   clearSelection() {
-    set({ selection: new Set() })
+    set({ selection: new Set(), prefixSelection: new Set() })
   },
 
   selectAll() {

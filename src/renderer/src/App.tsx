@@ -1,13 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ConnectionSummary } from '@shared/types'
 import { BucketList } from './components/BucketList'
 import { ConnectionEditor } from './components/ConnectionEditor'
 import { ConnectionRail } from './components/ConnectionRail'
 import { ManifestStrip } from './components/ManifestStrip'
+import { ObjectDetails } from './components/ObjectDetails'
 import { ObjectTable } from './components/ObjectTable'
 import { PathBar } from './components/PathBar'
+import { Toolbar } from './components/Toolbar'
+import { TransferPanel } from './components/TransferPanel'
 import { Button, EmptyState, ErrorNotice, LoadingBar } from './components/primitives'
+import { api, messageFor } from './lib/api'
 import { useSession } from './store/session'
+import { useTransfers } from './store/transfers'
 
 /**
  * Three zones, fixed for the life of the window: connections on the left, the current
@@ -17,6 +22,9 @@ import { useSession } from './store/session'
 export function App() {
   const [editing, setEditing] = useState<ConnectionSummary | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
+  const [detailsKey, setDetailsKey] = useState<string | null>(null)
+  const [dropActive, setDropActive] = useState(false)
+  const [dropError, setDropError] = useState<string | null>(null)
 
   const connections = useSession((state) => state.connections)
   const activeId = useSession((state) => state.activeConnectionId)
@@ -27,15 +35,65 @@ export function App() {
   const loadConnections = useSession((state) => state.loadConnections)
   const refresh = useSession((state) => state.refresh)
   const openConnection = useSession((state) => state.openConnection)
+  const selectAll = useSession((state) => state.selectAll)
+  const clearSelection = useSession((state) => state.clearSelection)
+
+  const subscribeTransfers = useTransfers((state) => state.subscribe)
 
   useEffect(() => {
     void loadConnections()
   }, [loadConnections])
 
+  // The queue lives in the main process; this only mirrors it.
+  useEffect(() => subscribeTransfers(), [subscribeTransfers])
+
+  // Selection shortcuts. Ignored while typing, or the filter box would hijack them.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return
+
+      if ((event.metaKey || event.ctrlKey) && event.key === 'a') {
+        event.preventDefault()
+        selectAll()
+      }
+      if (event.key === 'Escape') clearSelection()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectAll, clearSelection])
+
+  const onDrop = useCallback(
+    async (event: React.DragEvent) => {
+      event.preventDefault()
+      setDropActive(false)
+      if (!activeId || !location) return
+
+      // File.path was removed from Electron; the preload bridge resolves real paths.
+      const paths = [...event.dataTransfer.files].map((file) => window.pathForFile(file)).filter(Boolean)
+      if (paths.length === 0) return
+
+      try {
+        setDropError(null)
+        await api.transfers.upload({
+          connectionId: activeId,
+          bucket: location.bucket,
+          prefix: location.prefix,
+          paths
+        })
+      } catch (failure) {
+        setDropError(messageFor(failure))
+      }
+    },
+    [activeId, location]
+  )
+
   function openEditor(connection: ConnectionSummary | null) {
     setEditing(connection)
     setEditorOpen(true)
   }
+
+  const canDrop = Boolean(location)
 
   return (
     <>
@@ -57,8 +115,21 @@ export function App() {
       <div className="flex min-h-0 flex-1">
         <ConnectionRail onAdd={() => openEditor(null)} onEdit={openEditor} />
 
-        <main className="flex min-w-0 flex-1 flex-col bg-ink">
+        <main
+          className="relative flex min-w-0 flex-1 flex-col bg-ink"
+          onDragOver={(event) => {
+            if (!canDrop) return
+            event.preventDefault()
+            setDropActive(true)
+          }}
+          onDragLeave={(event) => {
+            // Only clear when the pointer leaves the pane, not when it crosses a child.
+            if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropActive(false)
+          }}
+          onDrop={(event) => void onDrop(event)}
+        >
           <PathBar onRefresh={() => void refresh()} />
+          <Toolbar />
           {loading ? <LoadingBar /> : null}
 
           {error ? (
@@ -70,6 +141,8 @@ export function App() {
               }}
             />
           ) : null}
+
+          {dropError ? <ErrorNotice message={dropError} /> : null}
 
           {!activeId ? (
             <EmptyState
@@ -89,17 +162,33 @@ export function App() {
             />
           ) : !location ? (
             <BucketList />
-          ) : listing && listing.prefixes.length === 0 && listing.objects.length === 0 && !loading ? (
+          ) : listing &&
+            listing.prefixes.length === 0 &&
+            listing.objects.length === 0 &&
+            !loading ? (
             <EmptyState
               title="Nothing here"
               detail={`${location.prefix || location.bucket} has no objects at this level. Drop files here to upload them.`}
             />
           ) : (
-            <ObjectTable />
+            <ObjectTable onOpenDetails={setDetailsKey} />
           )}
+
+          {dropActive ? (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-accent bg-accent/8">
+              <p className="rounded-[3px] bg-panel px-3 py-1.5 text-[12px] text-text shadow-lg">
+                Upload to {location ? `s3://${location.bucket}/${location.prefix}` : ''}
+              </p>
+            </div>
+          ) : null}
         </main>
+
+        {detailsKey ? (
+          <ObjectDetails objectKey={detailsKey} onClose={() => setDetailsKey(null)} />
+        ) : null}
       </div>
 
+      <TransferPanel />
       <ManifestStrip />
 
       {editorOpen ? (

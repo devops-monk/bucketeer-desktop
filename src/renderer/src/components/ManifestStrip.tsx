@@ -1,5 +1,6 @@
 import { formatBytes, sumBytes } from '../lib/format'
 import { useSession } from '../store/session'
+import { summarise, useTransfers } from '../store/transfers'
 
 /**
  * The manifest strip.
@@ -16,6 +17,8 @@ export function ManifestStrip() {
   const listing = useSession((state) => state.listing)
   const buckets = useSession((state) => state.buckets)
   const selection = useSession((state) => state.selection)
+  const transfers = summarise(useTransfers((state) => state.transfers))
+  const setPanelOpen = useTransfers((state) => state.setPanelOpen)
 
   const connection = connections.find((candidate) => candidate.id === activeId)
   const selectedObjects = listing?.objects.filter((object) => selection.has(object.key)) ?? []
@@ -57,6 +60,27 @@ export function ManifestStrip() {
       ) : null}
 
       <div className="flex-1" />
+
+      {transfers.active > 0 ? (
+        <button
+          onClick={() => setPanelOpen(true)}
+          className="tabular flex h-full items-center gap-2 border-l border-line-soft px-3 text-accent-ink hover:bg-raised"
+        >
+          {transfers.active} in flight
+          {transfers.total > 0
+            ? ` · ${Math.round((transfers.transferred / transfers.total) * 100)}%`
+            : ''}
+        </button>
+      ) : null}
+
+      {transfers.failed > 0 ? (
+        <button
+          onClick={() => setPanelOpen(true)}
+          className="tabular flex h-full items-center border-l border-line-soft px-3 text-danger hover:bg-raised"
+        >
+          {transfers.failed} failed
+        </button>
+      ) : null}
 
       {connection?.kmsKeyId ? (
         <Cell mono>

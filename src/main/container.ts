@@ -2,15 +2,20 @@ import { randomUUID } from 'node:crypto'
 import { app } from 'electron'
 import { BrowsingService } from './app/browsing-service'
 import { ConnectionService } from './app/connection-service'
+import { ObjectService } from './app/object-service'
+import { TransferService } from './app/transfer-service'
 import type { Clock, IdGenerator, ObjectStorage } from './core/ports'
 import { FileConnectionRepository } from './infra/connection-repository'
 import { SharedConfigProfileDirectory } from './infra/credentials/profile-directory'
 import { createCredentialResolver } from './infra/credentials/resolver'
 import { S3ClientFactory } from './infra/s3/client-factory'
 import { S3ObjectStorage } from './infra/s3/s3-object-storage'
+import { WindowBroadcaster } from './infra/broadcaster'
 import { SafeStorageVault } from './infra/vault'
 import { BrowsingModule } from './ipc/browsing-module'
 import { ConnectionModule } from './ipc/connection-module'
+import { ObjectModule } from './ipc/object-module'
+import { TransferModule } from './ipc/transfer-module'
 import { IpcRouter } from './ipc/router'
 
 /**
@@ -21,6 +26,8 @@ import { IpcRouter } from './ipc/router'
 export interface Container {
   connections: ConnectionService
   browsing: BrowsingService
+  objects: ObjectService
+  transfers: TransferService
   storage: ObjectStorage
   registerIpc(): void
   dispose(): void
@@ -45,18 +52,34 @@ export function createContainer(): Container {
     systemClock
   )
   const browsing = new BrowsingService(repository, storage)
+  const objects = new ObjectService(repository, storage)
+  const transfers = new TransferService(
+    repository,
+    storage,
+    new WindowBroadcaster(),
+    uuidGenerator,
+    systemClock
+  )
 
   return {
     connections,
     browsing,
+    objects,
+    transfers,
     storage,
     registerIpc() {
       const router = new IpcRouter()
-      for (const module of [new ConnectionModule(connections), new BrowsingModule(browsing)]) {
-        module.register(router)
-      }
+      const modules = [
+        new ConnectionModule(connections),
+        new BrowsingModule(browsing),
+        new ObjectModule(objects),
+        new TransferModule(transfers)
+      ]
+      for (const module of modules) module.register(router)
     },
     dispose() {
+      // Abort in-flight transfers before tearing down the clients they are using.
+      transfers.dispose()
       storage.dispose()
     }
   }
