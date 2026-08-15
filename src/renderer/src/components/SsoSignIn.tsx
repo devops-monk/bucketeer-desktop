@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { SsoPending } from '@shared/types'
 import { api, messageFor } from '../lib/api'
+import { KeyIcon } from './icons'
 import { Button } from './primitives'
 
 /**
@@ -13,11 +14,11 @@ import { Button } from './primitives'
 export function SsoSignIn({
   profileName,
   onSignedIn,
-  variant = 'ghost'
+  variant = 'secondary'
 }: {
   profileName: string
   onSignedIn?: () => void
-  variant?: 'primary' | 'ghost'
+  variant?: 'primary' | 'secondary'
 }) {
   const [pending, setPending] = useState<SsoPending | null>(null)
   const [busy, setBusy] = useState(false)
@@ -44,12 +45,24 @@ export function SsoSignIn({
 
   return (
     <div className="flex flex-col gap-2">
-      <Button variant={variant} onClick={() => void signIn()} disabled={busy || !profileName}>
-        {busy ? 'Waiting for approval…' : 'Sign in with SSO'}
+      <Button
+        variant={variant}
+        onClick={() => void signIn()}
+        disabled={busy || !profileName}
+        className="h-8 w-full justify-start px-3"
+      >
+        {busy ? (
+          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-accent" />
+        ) : (
+          <KeyIcon className="h-3.5 w-3.5" />
+        )}
+        <span className="flex-1 text-left">
+          {busy ? 'Waiting for approval in your browser…' : `Sign in to ${profileName}`}
+        </span>
       </Button>
 
       {busy && pending ? (
-        <div className="rounded-[3px] border border-line bg-ink px-3 py-2">
+        <div className="rounded-md border border-line bg-sunken px-3 py-2.5">
           <p className="text-[11.5px] leading-relaxed text-muted">
             Approve the sign-in in your browser. Confirm this code matches:
           </p>

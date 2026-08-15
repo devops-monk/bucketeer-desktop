@@ -11,7 +11,7 @@ import { Toolbar } from './components/Toolbar'
 import { WelcomePane } from './components/WelcomePane'
 import { TransferPanel } from './components/TransferPanel'
 import { SsoSignIn } from './components/SsoSignIn'
-import { FolderIcon } from './components/icons'
+import { BucketMark } from './components/BucketMark'
 import { EmptyState, ErrorNotice, LoadingBar } from './components/primitives'
 import { api, messageFor } from './lib/api'
 import { useListingAutoRefresh } from './lib/auto-refresh'
@@ -182,7 +182,7 @@ export function App() {
             listing.objects.length === 0 &&
             !loading ? (
             <EmptyState
-              icon={<FolderIcon className="h-12 w-12" />}
+              icon={<BucketMark className="h-14 w-14 opacity-60" />}
               title="This folder is empty"
               detail={`Nothing is stored under ${location.prefix || location.bucket} yet. Drop files here, or use Upload.`}
             />

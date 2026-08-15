@@ -1,5 +1,6 @@
 import type { ConnectionSummary } from '@shared/types'
 import { useSession } from '../store/session'
+import { BucketMark } from './BucketMark'
 import { BucketIcon } from './icons'
 import { Button, Tag } from './primitives'
 
@@ -27,8 +28,8 @@ export function WelcomePane({ onAdd }: { onAdd: () => void }) {
       />
 
       <div className="relative flex w-full max-w-md flex-col items-center text-center">
-        <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-line bg-raised shadow-md">
-          <BucketIcon className="h-8 w-8 text-accent" />
+        <span className="mb-6 flex h-20 w-20 items-center justify-center rounded-[22px] border border-line bg-raised shadow-md">
+          <BucketMark className="h-11 w-11 text-accent" />
         </span>
 
         <h1 className="text-[20px] font-semibold tracking-tight text-text">
