@@ -33,7 +33,9 @@ export const api = {
       unwrap(bridge.connections.save(...args)),
     remove: (id: string) => unwrap(bridge.connections.remove(id)),
     test: (id: string) => unwrap(bridge.connections.test(id)),
-    secretsAvailable: () => unwrap(bridge.connections.secretsAvailable())
+    secretsAvailable: () => unwrap(bridge.connections.secretsAvailable()),
+    exportAll: () => unwrap(bridge.connections.exportAll()),
+    importAll: () => unwrap(bridge.connections.importAll())
   },
   credentials: {
     sharedProfiles: () => unwrap(bridge.credentials.sharedProfiles()),

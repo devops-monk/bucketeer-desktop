@@ -1,6 +1,10 @@
 import type {
   Connection,
+  ConnectionExport,
   ConnectionSummary,
+  ExportedBase,
+  ExportedCredentials,
+  ImportResult,
   KmsKey,
   SsoLoginResult,
   SsoPending
@@ -116,6 +120,66 @@ export class ConnectionService {
   }
 
   /**
+   * Everything worth sharing about the saved connections, with no secrets in it.
+   *
+   * A key-based connection exports as its kind alone. That makes the file safe to send
+   * to a colleague or keep in a team repository, and it makes the trade honest: whoever
+   * imports it has to supply their own keys, which is the correct outcome anyway.
+   */
+  async exportAll(): Promise<ConnectionExport> {
+    const connections = await this.repository.list()
+
+    return {
+      application: 'bucketeer',
+      version: 1,
+      exportedAt: this.clock.nowIso(),
+      connections: connections.map(({ id: _id, createdAt: _createdAt, ...rest }) => ({
+        ...rest,
+        credentials: stripSecrets(rest.credentials)
+      }))
+    }
+  }
+
+  /**
+   * Adds connections from an exported file.
+   *
+   * Imports are additive and always get fresh ids: an import must never overwrite a
+   * connection someone has already set up and signed in to. Entries needing a secret
+   * this file cannot carry are reported by name rather than saved half-configured,
+   * because a connection that looks ready and then fails on first use is worse than one
+   * that was never created.
+   */
+  async importAll(payload: unknown): Promise<ImportResult> {
+    const file = payload as ConnectionExport | null
+    if (!file || file.application !== 'bucketeer' || !Array.isArray(file.connections)) {
+      throw new Error('This is not a Bucketeer connection export.')
+    }
+
+    const result: ImportResult = { imported: 0, needCredentials: [] }
+    const existing = new Set((await this.repository.list()).map((connection) => connection.name))
+
+    for (const entry of file.connections) {
+      const credentials = restore(entry.credentials)
+      if (!credentials) {
+        result.needCredentials.push(entry.name)
+        continue
+      }
+
+      const { credentials: _credentials, ...rest } = entry
+      await this.repository.save({
+        ...rest,
+        name: unique(entry.name, existing),
+        credentials,
+        id: this.ids.next(),
+        createdAt: this.clock.nowIso()
+      })
+      result.imported += 1
+    }
+
+    return result
+  }
+
+  /**
    * Strips secrets while keeping the settings the editor needs to show what was saved.
    *
    * Access keys and session tokens never leave the main process; profile names, role
@@ -144,4 +208,38 @@ export class ConnectionService {
       }
     }
   }
+}
+
+/** Removes anything that must not be written to a file the user may share. */
+function stripSecrets(source: Connection['credentials']): ExportedCredentials {
+  if (source.kind === 'access-key') return { kind: 'access-key' }
+  if (source.kind === 'assume-role') {
+    const { base, ...rest } = source
+    return { ...rest, base: stripSecrets(base) as ExportedBase }
+  }
+  return source
+}
+
+/**
+ * Rebuilds a usable credential source, or null when the export could not carry one.
+ *
+ * Only access keys are lost, and only because they were deliberately not written.
+ */
+function restore(source: ExportedCredentials): Connection['credentials'] | null {
+  if (source.kind === 'access-key') return null
+  if (source.kind === 'assume-role') {
+    const base = restore(source.base)
+    if (!base || base.kind === 'assume-role') return null
+    return { ...source, base }
+  }
+  return source
+}
+
+/** Keeps an imported connection distinguishable from one already on this machine. */
+function unique(name: string, taken: Set<string>): string {
+  let candidate = name
+  let suffix = 2
+  while (taken.has(candidate)) candidate = `${name} (${suffix++})`
+  taken.add(candidate)
+  return candidate
 }

@@ -64,6 +64,42 @@ export interface CredentialFacts {
   baseProfileName?: string
 }
 
+/**
+ * A connection as it appears in an exported file.
+ *
+ * Secrets are never written: an access-key connection exports as its kind alone, so the
+ * file can be mailed to a colleague or committed to a team repository without leaking
+ * anything. Profile names, role ARNs and MFA serials are configuration, not secrets, and
+ * they are what make an import useful.
+ */
+export type ExportedBase =
+  | { kind: 'access-key' }
+  | { kind: 'shared-profile'; profileName: string }
+  | { kind: 'environment' }
+  | { kind: 'default-chain' }
+
+export type ExportedCredentials =
+  | ExportedBase
+  | (Omit<Extract<CredentialSource, { kind: 'assume-role' }>, 'base'> & { base: ExportedBase })
+
+export type ExportedConnection = Omit<Connection, 'id' | 'createdAt' | 'credentials'> & {
+  credentials: ExportedCredentials
+}
+
+export interface ConnectionExport {
+  application: 'bucketeer'
+  version: 1
+  exportedAt: string
+  connections: ExportedConnection[]
+}
+
+/** What an import did, so the UI can say which connections still need their keys. */
+export interface ImportResult {
+  imported: number
+  /** Names of connections that could not be imported because they needed a secret. */
+  needCredentials: string[]
+}
+
 /** A connection minus its secrets, safe to hold in the renderer. */
 export type ConnectionSummary = Omit<Connection, 'credentials'> & {
   credentials: CredentialFacts

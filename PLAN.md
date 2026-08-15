@@ -103,13 +103,14 @@ without them.
 
 Previews and bulk share links are **done**: a Preview panel in the details drawer reads
 the first slice of an object with a ranged request rather than downloading it, and the
-share action now signs a link for every selected object at once.
+share action now signs a link for every selected object at once. Connections export and
+import from Preferences: the file carries names, regions, endpoints, profiles and roles
+and never a key or a token, and an import is additive with fresh ids.
 
 | Feature | Effort | Notes |
 | --- | --- | --- |
 | CloudFront distributions | M | Listing and invalidation only |
 | Command line interface | L | Shares the main-process services |
-| Bookmarks, import and export | S | Export never includes secrets |
 
 ### v1.0
 

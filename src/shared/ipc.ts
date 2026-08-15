@@ -15,6 +15,7 @@ import type {
   DeleteRequest,
   DeleteResult,
   DownloadRequest,
+  ImportResult,
   ListObjectsRequest,
   ListingPage,
   ObjectDetail,
@@ -45,6 +46,8 @@ export const Channels = {
   connectionsRemove: 'connections:remove',
   connectionsTest: 'connections:test',
   connectionsSecretsAvailable: 'connections:secrets-available',
+  connectionsExport: 'connections:export',
+  connectionsImport: 'connections:import',
   sharedProfilesList: 'credentials:shared-profiles',
   credentialsSsoLogin: 'credentials:sso-login',
   credentialsKmsKeys: 'credentials:kms-keys',
@@ -114,6 +117,17 @@ export interface BucketeerApi {
     test(id: string): Promise<Result<{ accountId?: string; buckets: number }>>
     /** False when the OS keychain is unavailable, meaning secrets cannot be persisted. */
     secretsAvailable(): Promise<Result<boolean>>
+    /**
+     * Writes every connection to a file the user picks. Never contains secrets, so
+     * key-based connections export as a name and a region only.
+     * Resolves to null when the save dialog was cancelled.
+     */
+    exportAll(): Promise<Result<string | null>>
+    /**
+     * Adds connections from an exported file. Additive — nothing existing is replaced.
+     * Resolves to null when the open dialog was cancelled.
+     */
+    importAll(): Promise<Result<ImportResult | null>>
   }
   credentials: {
     /** Profile names found in ~/.aws/config and ~/.aws/credentials. */

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Preferences } from '@shared/types'
 import { api, messageFor } from '../lib/api'
+import { useSession } from '../store/session'
 import { Button, Field, Input } from './primitives'
 
 /**
@@ -15,6 +16,8 @@ export function PreferencesDialog({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [transferNote, setTransferNote] = useState<string | null>(null)
+  const loadConnections = useSession((state) => state.loadConnections)
 
   useEffect(() => {
     api.app
@@ -43,6 +46,36 @@ export function PreferencesDialog({ onClose }: { onClose: () => void }) {
       setError(messageFor(failure))
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function exportConnections() {
+    setError(null)
+    setTransferNote(null)
+    try {
+      const path = await api.connections.exportAll()
+      if (path) setTransferNote(`Saved to ${path}. No keys or tokens are in the file.`)
+    } catch (failure) {
+      setError(messageFor(failure))
+    }
+  }
+
+  async function importConnections() {
+    setError(null)
+    setTransferNote(null)
+    try {
+      const result = await api.connections.importAll()
+      if (!result) return
+      await loadConnections()
+
+      const added = `Added ${result.imported} connection${result.imported === 1 ? '' : 's'}.`
+      setTransferNote(
+        result.needCredentials.length === 0
+          ? added
+          : `${added} ${result.needCredentials.join(', ')} needed access keys, which exports never carry — add ${result.needCredentials.length === 1 ? 'it' : 'them' } by hand.`
+      )
+    } catch (failure) {
+      setError(messageFor(failure))
     }
   }
 
@@ -138,6 +171,22 @@ export function PreferencesDialog({ onClose }: { onClose: () => void }) {
                 Changes apply to transfers started from now on. Anything already running keeps
                 the settings it began with.
               </p>
+
+              <div className="flex flex-col gap-2 border-t border-line-soft pt-4">
+                <span className="eyebrow">Connections</span>
+                <p className="text-[11px] leading-relaxed text-faint">
+                  An export carries names, regions, endpoints, profiles and roles — never
+                  access keys or tokens, so the file is safe to send to a colleague.
+                  Importing adds connections and never replaces what is already here.
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={() => void exportConnections()}>Export…</Button>
+                  <Button onClick={() => void importConnections()}>Import…</Button>
+                </div>
+                {transferNote ? (
+                  <p className="text-[11.5px] leading-relaxed text-muted">{transferNote}</p>
+                ) : null}
+              </div>
             </>
           )}
 

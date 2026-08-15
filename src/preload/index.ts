@@ -39,7 +39,9 @@ const api: BucketeerApi = {
       ipcRenderer.invoke(Channels.connectionsSave, connection),
     remove: (id: string) => ipcRenderer.invoke(Channels.connectionsRemove, id),
     test: (id: string) => ipcRenderer.invoke(Channels.connectionsTest, id),
-    secretsAvailable: () => ipcRenderer.invoke(Channels.connectionsSecretsAvailable)
+    secretsAvailable: () => ipcRenderer.invoke(Channels.connectionsSecretsAvailable),
+    exportAll: () => ipcRenderer.invoke(Channels.connectionsExport),
+    importAll: () => ipcRenderer.invoke(Channels.connectionsImport)
   },
   credentials: {
     sharedProfiles: () => ipcRenderer.invoke(Channels.sharedProfilesList),
