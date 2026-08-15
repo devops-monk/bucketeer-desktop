@@ -17,25 +17,40 @@ import { readCachedToken } from '../src/main/infra/credentials/sso-token-cache'
 const START_URL = 'https://example.awsapps.com/start'
 const SETTINGS = { startUrl: START_URL, region: 'eu-west-1' }
 
+/** Spawning a stand-in for `aws` means writing an executable script, which is POSIX-only. */
+const posixOnly = process.platform === 'win32'
+
 let home: string
 let originalHome: string | undefined
+let originalProfile: string | undefined
 let originalPath: string | undefined
 
-/** os.homedir() reads $HOME, so a temporary one gives us a whole fake ~/.aws. */
+/**
+ * os.homedir() reads $HOME on POSIX and %USERPROFILE% on Windows, so both are pointed at
+ * a temporary directory to get a whole fake ~/.aws — the same one the AWS CLI would use.
+ */
 beforeEach(async () => {
   home = await mkdtemp(join(tmpdir(), 'bucketeer-home-'))
   originalHome = process.env.HOME
+  originalProfile = process.env.USERPROFILE
   originalPath = process.env.PATH
   process.env.HOME = home
+  process.env.USERPROFILE = home
   await mkdir(join(home, '.aws', 'sso', 'cache'), { recursive: true })
 })
 
 afterEach(async () => {
-  process.env.HOME = originalHome
-  process.env.PATH = originalPath
+  restore('HOME', originalHome)
+  restore('USERPROFILE', originalProfile)
+  restore('PATH', originalPath)
   delete process.env.AWS_CONFIG_FILE
   await rm(home, { recursive: true, force: true })
 })
+
+function restore(name: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[name]
+  else process.env[name] = value
+}
 
 /** Writes a token where the AWS CLI would have written one. */
 async function writeToken(expiresAt: string, extra: Record<string, unknown> = {}): Promise<void> {
@@ -115,14 +130,21 @@ describe('explaining why a profile would not resolve', () => {
   })
 })
 
-describe('signing in through the AWS CLI', () => {
-  /** A stand-in for `aws` that behaves the way the real one does on this path. */
+describe.skipIf(posixOnly)('signing in through the AWS CLI', () => {
+  /**
+   * A stand-in for `aws` that behaves the way the real one does on this path.
+   *
+   * PATH is *replaced* rather than prepended, so a machine with the real AWS CLI
+   * installed — every GitHub runner, for one — cannot have these tests reach it and
+   * start a genuine device authorization against Amazon.
+   */
   async function fakeCli(body: string): Promise<string> {
     const directory = join(home, 'bin')
     await mkdir(directory, { recursive: true })
     const path = join(directory, 'aws')
     await writeFile(path, `#!/bin/sh\n${body}\n`)
     await chmod(path, 0o755)
+    process.env.PATH = directory
     return directory
   }
 
@@ -130,14 +152,13 @@ describe('signing in through the AWS CLI', () => {
     const authenticator = new AwsCliSsoAuthenticator({} as never)
 
     const directory = await fakeCli('exit 0')
-    process.env.PATH = directory
     expect(await authenticator.locate()).toBe(join(directory, 'aws'))
 
     // A file sitting there without the execute bit is not a CLI, and treating it as one
-    // turns a missing CLI into a confusing spawn failure.
+    // turns a missing CLI into a confusing spawn failure. What is found instead — a real
+    // CLI in one of the usual install directories, or nothing — depends on the machine.
     await chmod(join(directory, 'aws'), 0o644)
-    const found = await authenticator.locate()
-    expect(found === null || found !== join(directory, 'aws')).toBe(true)
+    expect(await authenticator.locate()).not.toBe(join(directory, 'aws'))
   })
 
   it('runs aws sso login for the chosen profile and reports the code it prints', async () => {
@@ -147,7 +168,6 @@ describe('signing in through the AWS CLI', () => {
        echo "Then enter the code: WXYZ-1234"
        echo "$@" > "${home}/called.txt"`
     )
-    process.env.PATH = `${directory}:${process.env.PATH}`
 
     const expiresAt = new Date(Date.now() + 3600_000).toISOString()
     await writeToken(expiresAt)
@@ -176,8 +196,7 @@ describe('signing in through the AWS CLI', () => {
   })
 
   it('surfaces the CLI’s own diagnosis when it fails', async () => {
-    const directory = await fakeCli('echo "Error loading SSO Token: something is wrong" >&2\nexit 1')
-    process.env.PATH = `${directory}:${process.env.PATH}`
+    await fakeCli('echo "Error loading SSO Token: something is wrong" >&2\nexit 1')
     await writeFile(join(home, 'config'), `[profile p]\nsso_start_url = ${START_URL}\n`)
     process.env.AWS_CONFIG_FILE = join(home, 'config')
 
