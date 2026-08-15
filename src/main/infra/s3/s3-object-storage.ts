@@ -38,6 +38,14 @@ const PAGE_SIZE = 1000
 const DELETE_BATCH = 1000
 /** 8 MB parts: large enough to keep request overhead low, small enough to retry cheaply. */
 const PART_SIZE = 8 * 1024 * 1024
+/**
+ * CRC32C on every upload and download.
+ *
+ * S3 verifies the checksum server-side and rejects a part that does not match, which
+ * turns a silently corrupted transfer into a failed one. CRC32C is the cheapest of the
+ * algorithms the SDK offers and is what AWS uses by default for multipart.
+ */
+const CHECKSUM_ALGORITHM = 'CRC32C' as const
 
 /** ObjectStorage backed by the AWS SDK. The only place S3 commands are issued. */
 export class S3ObjectStorage implements ObjectStorage {
@@ -222,6 +230,8 @@ export class S3ObjectStorage implements ObjectStorage {
         Key: key,
         Body: body,
         ContentType: options.contentType,
+        // Verified by S3 on arrival: a corrupted upload fails rather than lands.
+        ChecksumAlgorithm: CHECKSUM_ALGORITHM,
         // Only set encryption headers when a key was given; sending them empty makes
         // S3 reject the request rather than fall back to the bucket default.
         ...(options.kmsKeyId
@@ -262,7 +272,9 @@ export class S3ObjectStorage implements ObjectStorage {
   ): Promise<void> {
     const client = await this.factory.forBucket(connection, bucket)
     const result = await client.send(
-      new GetObjectCommand({ Bucket: bucket, Key: key }),
+      // ChecksumMode makes S3 return the stored checksum, which the SDK then validates
+      // against the bytes it received.
+      new GetObjectCommand({ Bucket: bucket, Key: key, ChecksumMode: 'ENABLED' }),
       { abortSignal: options.signal }
     )
 
@@ -331,7 +343,16 @@ export class S3ObjectStorage implements ObjectStorage {
     const client = await this.factory.forBucket(connection, bucket)
     // A zero-byte object whose key ends in "/" is the convention every S3 tool reads
     // as an empty folder. S3 itself has no such concept.
-    await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: '' }))
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: '',
+        // A zero-length body still gets a length, which avoids the SDK's warning about
+        // streams of unknown size.
+        ContentLength: 0
+      })
+    )
   }
 
   async presign(

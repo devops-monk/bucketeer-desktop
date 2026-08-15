@@ -18,7 +18,12 @@
     "pack:mac": "npm run build && electron-builder --mac",
     "pack:win": "npm run build && electron-builder --win",
     "pack:linux": "npm run build && electron-builder --linux",
-    "icon": "electron scripts/make-icon.cjs"
+    "icon": "electron scripts/make-icon.cjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:localstack": "docker run --rm -d --name bucketeer-localstack -p 4566:4566 -e SERVICES=s3 localstack/localstack && echo \"LocalStack on :4566 — run: S3_TEST_ENDPOINT=http://127.0.0.1:4566 npm test\"",
+    "test:minio": "docker run --rm -d --name bucketeer-minio -p 9000:9000 -e MINIO_ROOT_USER=bucketeer -e MINIO_ROOT_PASSWORD=bucketeer123 minio/minio server /data && echo \"MinIO on :9000 — run: S3_TEST_ENDPOINT=http://127.0.0.1:9000 S3_TEST_KEY=bucketeer S3_TEST_SECRET=bucketeer123 npm test\"",
+    "test:stop": "docker rm -f bucketeer-localstack bucketeer-minio 2>/dev/null || true"
   },
   "devDependencies": {
     "@aws-sdk/types": "^3.974.4",
@@ -35,6 +40,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^7.3.6",
+    "vitest": "^3.2.7",
     "zustand": "^5.0.15"
   },
   "dependencies": {
@@ -44,6 +50,7 @@
     "@aws-sdk/client-sts": "^3.1111.0",
     "@aws-sdk/credential-providers": "^3.1111.0",
     "@aws-sdk/lib-storage": "^3.1111.0",
-    "@aws-sdk/s3-request-presigner": "^3.1111.0"
+    "@aws-sdk/s3-request-presigner": "^3.1111.0",
+    "@tanstack/react-virtual": "^3.14.9"
   }
 }

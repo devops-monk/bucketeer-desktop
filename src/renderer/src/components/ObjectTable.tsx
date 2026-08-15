@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import type { S3Object, S3Prefix } from '@shared/types'
 import { extensionOf, formatBytes, formatStorageClass, formatTimestamp } from '../lib/format'
 import { useSession } from '../store/session'
 import { FileIcon, FolderIcon } from './icons'
 import { Button, Tooltip } from './primitives'
+
+/** Fixed row height, in pixels. Rows are uniform by design, so this is exact. */
+const ROW_HEIGHT = 37
 
 type SortColumn = 'name' | 'size' | 'modified'
 type SortDirection = 'asc' | 'desc'
@@ -74,6 +78,26 @@ export function ObjectTable({ onOpenDetails }: { onOpenDetails: (key: string) =>
     return () => observer.disconnect()
   }, [listing?.nextToken, loadMore])
 
+  // Folders and objects share one virtual window; the discriminator keeps their very
+  // different rows straight without two scroll containers.
+  const rows = useMemo(
+    () => [
+      ...visible.prefixes.map((prefix) => ({ kind: 'prefix' as const, prefix })),
+      ...visible.objects.map((object) => ({ kind: 'object' as const, object }))
+    ],
+    [visible]
+  )
+
+  const scroller = useRef<HTMLDivElement>(null)
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scroller.current,
+    // Row height is fixed by design, so estimation is exact and nothing re-measures.
+    estimateSize: () => ROW_HEIGHT,
+    // A few rows either side, so a fast scroll does not show blank space.
+    overscan: 12
+  })
+
   if (!listing) return null
 
   const shown = visible.prefixes.length + visible.objects.length
@@ -89,8 +113,15 @@ export function ObjectTable({ onOpenDetails }: { onOpenDetails: (key: string) =>
     )
   }
 
+  const virtualRows = virtualizer.getVirtualItems()
+  // Padding rows stand in for everything above and below the window, so the scrollbar
+  // reflects the whole listing while only the visible rows exist in the DOM.
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0
+  const paddingBottom =
+    virtualRows.length > 0 ? virtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end : 0
+
   return (
-    <div className="rise flex-1 overflow-y-auto">
+    <div ref={scroller} className="rise flex-1 overflow-y-auto">
       <table className="w-full border-collapse">
         <thead className="sticky top-0 z-10 bg-surface/95 backdrop-blur">
           <tr className="border-b border-line">
@@ -123,24 +154,38 @@ export function ObjectTable({ onOpenDetails }: { onOpenDetails: (key: string) =>
           </tr>
         </thead>
         <tbody>
-          {visible.prefixes.map((prefix) => (
-            <PrefixRow
-              key={prefix.prefix}
-              prefix={prefix}
-              selected={prefixSelection.has(prefix.prefix)}
-              onOpen={() => void navigateTo(prefix.prefix)}
-              onSelect={(additive) => togglePrefixSelection(prefix.prefix, additive)}
-            />
-          ))}
-          {visible.objects.map((object) => (
-            <ObjectRow
-              key={object.key}
-              object={object}
-              selected={selection.has(object.key)}
-              onSelect={(additive) => toggleSelection(object.key, additive)}
-              onOpen={() => onOpenDetails(object.key)}
-            />
-          ))}
+          {paddingTop > 0 ? (
+            <tr aria-hidden>
+              <td colSpan={5} style={{ height: paddingTop, padding: 0, border: 0 }} />
+            </tr>
+          ) : null}
+
+          {virtualRows.map((virtualRow) => {
+            const row = rows[virtualRow.index]
+            return row.kind === 'prefix' ? (
+              <PrefixRow
+                key={row.prefix.prefix}
+                prefix={row.prefix}
+                selected={prefixSelection.has(row.prefix.prefix)}
+                onOpen={() => void navigateTo(row.prefix.prefix)}
+                onSelect={(additive) => togglePrefixSelection(row.prefix.prefix, additive)}
+              />
+            ) : (
+              <ObjectRow
+                key={row.object.key}
+                object={row.object}
+                selected={selection.has(row.object.key)}
+                onSelect={(additive) => toggleSelection(row.object.key, additive)}
+                onOpen={() => onOpenDetails(row.object.key)}
+              />
+            )
+          })}
+
+          {paddingBottom > 0 ? (
+            <tr aria-hidden>
+              <td colSpan={5} style={{ height: paddingBottom, padding: 0, border: 0 }} />
+            </tr>
+          ) : null}
         </tbody>
       </table>
 

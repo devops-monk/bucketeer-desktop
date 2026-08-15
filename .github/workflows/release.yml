@@ -66,6 +66,9 @@ jobs:
             npm version "${base%-dev}-dev" --no-git-tag-version --allow-same-version
           fi
 
+      - name: Test
+        run: npm test
+
       - name: Typecheck and build bundles
         run: npm run build
 
