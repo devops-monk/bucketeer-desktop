@@ -37,6 +37,13 @@ nsis:
 
 linux:
   category: Development
+  # Debian packages require a maintainer. Using the GitHub noreply address keeps a
+  # personal inbox out of every .deb's metadata while still being a routable contact.
+  maintainer: devops-monk <devops-monk@users.noreply.github.com>
+  # Without a desktop entry name, Linux desktops cannot associate the running window
+  # with its launcher icon.
+  synopsis: Desktop client for Amazon S3 and S3-compatible storage
+  syncDesktopName: true
   target:
     - AppImage
     - deb
