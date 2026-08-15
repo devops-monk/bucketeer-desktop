@@ -16,6 +16,7 @@ import type {
   Result,
   SsoLoginResult,
   SsoPending,
+  ThemePreference,
   Transfer,
   UploadRequest
 } from './types'
@@ -47,6 +48,9 @@ export const Channels = {
   transfersClearFinished: 'transfers:clear-finished',
   /** Main → renderer: the transfer queue changed. */
   transfersChanged: 'transfers:changed',
+  appVersion: 'app:version',
+  appGetTheme: 'app:get-theme',
+  appSetTheme: 'app:set-theme',
   dialogPickFiles: 'dialog:pick-files',
   dialogPickDirectory: 'dialog:pick-directory'
 } as const
@@ -102,6 +106,11 @@ export interface BucketeerApi {
     clearFinished(): Promise<Result<void>>
     /** Subscribes to queue changes. Returns an unsubscribe function. */
     onChanged(listener: (transfers: Transfer[]) => void): () => void
+  }
+  app: {
+    version(): Promise<Result<string>>
+    getTheme(): Promise<Result<ThemePreference>>
+    setTheme(theme: ThemePreference): Promise<Result<void>>
   }
   dialog: {
     /** Native file picker. Empty array means the user cancelled. */

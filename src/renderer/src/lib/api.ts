@@ -68,6 +68,12 @@ export const api = {
     clearFinished: () => unwrap(bridge.transfers.clearFinished()),
     onChanged: bridge.transfers.onChanged
   },
+  app: {
+    version: () => unwrap(bridge.app.version()),
+    getTheme: () => unwrap(bridge.app.getTheme()),
+    setTheme: (...args: Parameters<typeof bridge.app.setTheme>) =>
+      unwrap(bridge.app.setTheme(...args))
+  },
   dialog: {
     pickFiles: () => unwrap(bridge.dialog.pickFiles()),
     pickDirectory: () => unwrap(bridge.dialog.pickDirectory())

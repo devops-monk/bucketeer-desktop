@@ -132,6 +132,9 @@ export interface SsoLoginResult {
   expiresAt: string
 }
 
+/** Which colour scheme the app uses. "system" follows the OS. */
+export type ThemePreference = 'system' | 'light' | 'dark'
+
 /** A KMS key a connection can see, for the key picker. */
 export interface KmsKey {
   /** Full ARN — the form bucket policies are written against. */

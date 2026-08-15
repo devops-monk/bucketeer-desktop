@@ -6,6 +6,8 @@ const container = createContainer()
 
 async function start(): Promise<void> {
   await app.whenReady()
+  // Applied before any window exists, so the first paint is already the right theme.
+  await container.settings.applyStoredTheme()
   container.registerIpc()
   createMainWindow()
 

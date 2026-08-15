@@ -9,6 +9,7 @@ import type {
   PresignRequest,
   RenameRequest,
   SsoPending,
+  ThemePreference,
   Transfer,
   UploadRequest
 } from '@shared/types'
@@ -65,6 +66,11 @@ const api: BucketeerApi = {
       ipcRenderer.on(Channels.transfersChanged, handler)
       return () => ipcRenderer.removeListener(Channels.transfersChanged, handler)
     }
+  },
+  app: {
+    version: () => ipcRenderer.invoke(Channels.appVersion),
+    getTheme: () => ipcRenderer.invoke(Channels.appGetTheme),
+    setTheme: (theme: ThemePreference) => ipcRenderer.invoke(Channels.appSetTheme, theme)
   },
   dialog: {
     pickFiles: () => ipcRenderer.invoke(Channels.dialogPickFiles),

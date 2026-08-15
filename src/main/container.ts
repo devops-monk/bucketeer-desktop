@@ -13,9 +13,11 @@ import { DeviceCodeSsoAuthenticator } from './infra/credentials/sso-login'
 import { S3ClientFactory } from './infra/s3/client-factory'
 import { S3ObjectStorage } from './infra/s3/s3-object-storage'
 import { WindowBroadcaster } from './infra/broadcaster'
+import { SettingsStore } from './infra/settings-store'
 import { ShellUrlOpener } from './infra/url-opener'
 import { SafeStorageVault } from './infra/vault'
 import { BrowsingModule } from './ipc/browsing-module'
+import { AppModule } from './ipc/app-module'
 import { ConnectionModule } from './ipc/connection-module'
 import { ObjectModule } from './ipc/object-module'
 import { TransferModule } from './ipc/transfer-module'
@@ -27,6 +29,7 @@ import { IpcRouter } from './ipc/router'
  */
 
 export interface Container {
+  settings: SettingsStore
   connections: ConnectionService
   browsing: BrowsingService
   objects: ObjectService
@@ -44,6 +47,7 @@ export function createContainer(): Container {
   const repository = new FileConnectionRepository(vault, app.getPath('userData'))
   const credentials = createCredentialResolver()
   const storage = new S3ObjectStorage(new S3ClientFactory(credentials), credentials)
+  const settings = new SettingsStore()
   const profiles = new SharedConfigProfileDirectory()
   const broadcaster = new WindowBroadcaster()
   const sso = new DeviceCodeSsoAuthenticator(profiles, new ShellUrlOpener())
@@ -70,6 +74,7 @@ export function createContainer(): Container {
   )
 
   return {
+    settings,
     connections,
     browsing,
     objects,
@@ -81,7 +86,8 @@ export function createContainer(): Container {
         new ConnectionModule(connections),
         new BrowsingModule(browsing),
         new ObjectModule(objects),
-        new TransferModule(transfers)
+        new TransferModule(transfers),
+        new AppModule(settings)
       ]
       for (const module of modules) module.register(router)
     },
