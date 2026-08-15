@@ -61,6 +61,15 @@ export function SsoSignIn({
         </span>
       </Button>
 
+      {!busy && !signedInAt ? (
+        <p className="text-[11px] leading-relaxed text-faint">
+          Runs <span className="tabular">aws sso login --profile {profileName || '…'}</span> when
+          the AWS CLI is installed, so the browser asks you to authorise the AWS CLI and your
+          terminal is signed in too. A session you started in a terminal already counts — this
+          is only needed when there isn’t one.
+        </p>
+      ) : null}
+
       {busy && pending ? (
         <div className="rounded-md border border-line bg-sunken px-3 py-2.5">
           <p className="text-[11.5px] leading-relaxed text-muted">

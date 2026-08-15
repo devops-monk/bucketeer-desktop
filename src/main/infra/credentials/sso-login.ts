@@ -1,7 +1,3 @@
-import { createHash } from 'node:crypto'
-import { mkdir, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import {
   CreateTokenCommand,
   RegisterClientCommand,
@@ -11,6 +7,7 @@ import {
 import type { SsoLoginResult, SsoPending } from '@shared/types'
 import { BucketeerError } from '../../core/errors'
 import type { ProfileDirectory, SsoAuthenticator, UrlOpener } from '../../core/ports'
+import { writeCachedToken } from './sso-token-cache'
 
 /** Give up if the user has not approved within this long. */
 const LOGIN_TIMEOUT_MS = 3 * 60 * 1000
@@ -20,6 +17,10 @@ const DEFAULT_INTERVAL_MS = 5000
 /**
  * IAM Identity Center login by device authorization — the same flow `aws sso login`
  * uses, run from inside the app.
+ *
+ * Used only when the AWS CLI is not installed: it has to register itself as a client,
+ * so the browser asks the user to authorise "bucketeer" rather than the AWS CLI they
+ * already trust. Where the CLI exists, {@link AwsCliSsoAuthenticator} runs that instead.
  *
  * The resulting token is written to the shared SSO cache in the CLI's own format, which
  * has two consequences worth stating: the existing credential path picks it up with no
@@ -72,7 +73,7 @@ export class DeviceCodeSsoAuthenticator implements SsoAuthenticator {
       await this.opener.open(verificationUri)
 
       const token = await this.poll(client, registration, authorization)
-      await writeTokenCache(settings, registration, token)
+      await writeCachedToken(settings, registration, token)
 
       return { profileName, expiresAt: token.expiresAt }
     } finally {
@@ -134,37 +135,4 @@ export class DeviceCodeSsoAuthenticator implements SsoAuthenticator {
       'SsoLoginTimeout'
     )
   }
-}
-
-/**
- * Writes the token where the AWS SDK and CLI look for it.
- *
- * The cache key is a SHA-1 of the session name when the profile uses an sso_session
- * block, and of the start URL otherwise — get this wrong and the login appears to
- * succeed while every later request still fails as unauthenticated.
- */
-async function writeTokenCache(
-  settings: { startUrl: string; region: string; sessionName?: string },
-  registration: { clientId?: string; clientSecret?: string; clientSecretExpiresAt?: number },
-  token: { accessToken: string; refreshToken?: string; expiresAt: string }
-): Promise<void> {
-  const cacheDirectory = join(homedir(), '.aws', 'sso', 'cache')
-  await mkdir(cacheDirectory, { recursive: true })
-
-  const key = createHash('sha1').update(settings.sessionName ?? settings.startUrl).digest('hex')
-  const payload = {
-    startUrl: settings.startUrl,
-    region: settings.region,
-    accessToken: token.accessToken,
-    // The CLI writes second-precision UTC without milliseconds; match it exactly.
-    expiresAt: token.expiresAt.replace(/\.\d{3}Z$/, 'Z'),
-    clientId: registration.clientId,
-    clientSecret: registration.clientSecret,
-    registrationExpiresAt: registration.clientSecretExpiresAt
-      ? new Date(registration.clientSecretExpiresAt * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
-      : undefined,
-    refreshToken: token.refreshToken
-  }
-
-  await writeFile(join(cacheDirectory, `${key}.json`), JSON.stringify(payload), { mode: 0o600 })
 }
