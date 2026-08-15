@@ -72,13 +72,20 @@ jobs:
       - name: Typecheck and build bundles
         run: npm run build
 
+      # Signs and notarizes when the Apple secrets exist, and falls back to the ad-hoc
+      # build when they do not — so adding them later needs no change here.
+      # See docs/mac-code-signing.md for how to obtain them.
       - name: Package installers
         run: ${{ matrix.command }}
         env:
-          # No signing certificates are configured yet, so tell electron-builder not to
-          # go looking for one — otherwise the macOS job fails instead of shipping an
-          # ad-hoc signed build.
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Looking for a certificate that is not there fails the job rather than
+          # producing an unsigned build, so discovery stays off until one is supplied.
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-artifact@v4

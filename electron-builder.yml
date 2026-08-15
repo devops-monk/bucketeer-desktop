@@ -28,10 +28,12 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   hardenedRuntime: true
   gatekeeperAssess: false
-  # Ad-hoc signature. Without any signature at all, macOS reports the app as "damaged
-  # and can't be opened" instead of merely untrusted — and on Apple Silicon it refuses
-  # to launch outright. This does not replace a Developer ID: users still see an
-  # unidentified-developer warning, but the app opens after right-click → Open.
+  # Ad-hoc signature, used only because there is no Developer ID yet. Without any
+  # signature at all, macOS reports the app as "damaged and can't be opened" rather than
+  # merely untrusted, and on Apple Silicon refuses to launch outright.
+  #
+  # REMOVE THIS LINE once a Developer ID certificate is available, so electron-builder
+  # finds the real certificate instead. See docs/mac-code-signing.md, step 7.
   identity: '-'
 
 win:

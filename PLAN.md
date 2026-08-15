@@ -146,6 +146,10 @@ consequences, both permanent until that changes:
 An alternative, if the warning becomes a real obstacle: distribute macOS builds through
 Homebrew Cask, where `brew install --cask` removes the quarantine attribute itself.
 
+If the membership does become available, `docs/mac-code-signing.md` is the full path from
+nothing to a build that opens on a double-click. The release workflow already passes the
+five secrets it needs, so nothing in CI has to change.
+
 ## Known gaps
 - Uploads and downloads do not resume after a restart.
 - Sync is one-way, local to remote. Remote to local is not built.
