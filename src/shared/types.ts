@@ -120,6 +120,30 @@ export interface ObjectHeaders {
   storageClass?: string
 }
 
+/** One stored version of an object. A bucket without versioning has exactly one. */
+export interface ObjectVersion {
+  key: string
+  versionId: string
+  size: number
+  lastModified?: string
+  etag?: string
+  storageClass?: string
+  /** The version S3 serves when no version is named. */
+  isLatest: boolean
+  /**
+   * A tombstone rather than data: the object appears deleted while this is the latest
+   * version, and removing it brings the object back.
+   */
+  isDeleteMarker: boolean
+}
+
+export interface VersionActionRequest {
+  connectionId: string
+  bucket: string
+  key: string
+  versionId: string
+}
+
 export interface RestoreRequest {
   connectionId: string
   bucket: string

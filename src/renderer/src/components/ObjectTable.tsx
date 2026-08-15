@@ -25,7 +25,7 @@ type SortDirection = 'asc' | 'desc'
  * machine values — size, modified, class — are monospace and right-aligned so a column
  * can be scanned vertically without reading it.
  */
-export function ObjectTable({ onOpenDetails }: { onOpenDetails: (key: string) => void }) {
+export function ObjectTable() {
   const listing = useSession((state) => state.listing)
   const filter = useSession((state) => state.filter)
   const selection = useSession((state) => state.selection)
@@ -37,6 +37,20 @@ export function ObjectTable({ onOpenDetails }: { onOpenDetails: (key: string) =>
   const clearSelection = useSession((state) => state.clearSelection)
   const loadMore = useSession((state) => state.loadMore)
   const loadingMore = useSession((state) => state.loadingMore)
+  const setContextMenu = useSession((state) => state.setContextMenu)
+  const setDetailsKey = useSession((state) => state.setDetailsKey)
+
+  /**
+   * Right-clicking acts on what was aimed at: a row outside the current selection
+   * replaces it, so the menu never operates on something off screen. Right-clicking
+   * inside an existing selection leaves it alone, which is what makes the menu usable
+   * for a batch.
+   */
+  const openMenu = (event: React.MouseEvent, isSelected: boolean, select: () => void) => {
+    event.preventDefault()
+    if (!isSelected) select()
+    setContextMenu({ x: event.clientX, y: event.clientY })
+  }
 
   const [sort, setSort] = useState<{ column: SortColumn; direction: SortDirection }>({
     column: 'name',
@@ -175,6 +189,11 @@ export function ObjectTable({ onOpenDetails }: { onOpenDetails: (key: string) =>
                 selected={prefixSelection.has(row.prefix.prefix)}
                 onOpen={() => void navigateTo(row.prefix.prefix)}
                 onSelect={(additive) => togglePrefixSelection(row.prefix.prefix, additive)}
+                onMenu={(event) =>
+                  openMenu(event, prefixSelection.has(row.prefix.prefix), () =>
+                    togglePrefixSelection(row.prefix.prefix, false)
+                  )
+                }
               />
             ) : (
               <ObjectRow
@@ -182,7 +201,12 @@ export function ObjectTable({ onOpenDetails }: { onOpenDetails: (key: string) =>
                 object={row.object}
                 selected={selection.has(row.object.key)}
                 onSelect={(additive) => toggleSelection(row.object.key, additive)}
-                onOpen={() => onOpenDetails(row.object.key)}
+                onOpen={() => setDetailsKey(row.object.key)}
+                onMenu={(event) =>
+                  openMenu(event, selection.has(row.object.key), () =>
+                    toggleSelection(row.object.key, false)
+                  )
+                }
               />
             )
           })}
@@ -293,17 +317,20 @@ function PrefixRow({
   prefix,
   selected,
   onOpen,
-  onSelect
+  onSelect,
+  onMenu
 }: {
   prefix: S3Prefix
   selected: boolean
   onOpen: () => void
   onSelect: (additive: boolean) => void
+  onMenu: (event: React.MouseEvent) => void
 }) {
   return (
     <tr
       onClick={(event) => onSelect(event.metaKey || event.ctrlKey || event.shiftKey)}
       onDoubleClick={onOpen}
+      onContextMenu={onMenu}
       aria-selected={selected}
       className={`group cursor-default border-b border-line-soft transition-colors duration-100 ${
         selected ? 'bg-accent-soft/50' : 'hover:bg-hover'
@@ -340,12 +367,14 @@ function ObjectRow({
   object,
   selected,
   onSelect,
-  onOpen
+  onOpen,
+  onMenu
 }: {
   object: S3Object
   selected: boolean
   onSelect: (additive: boolean) => void
   onOpen: () => void
+  onMenu: (event: React.MouseEvent) => void
 }) {
   const storageClass = formatStorageClass(object.storageClass)
   const isDefault = isDefaultStorageClass(object.storageClass)
@@ -355,6 +384,7 @@ function ObjectRow({
     <tr
       onClick={(event) => onSelect(event.metaKey || event.ctrlKey || event.shiftKey)}
       onDoubleClick={onOpen}
+      onContextMenu={onMenu}
       aria-selected={selected}
       className={`cursor-default border-b border-line-soft transition-colors duration-100 ${
         selected ? 'bg-accent-soft/50' : 'hover:bg-hover'

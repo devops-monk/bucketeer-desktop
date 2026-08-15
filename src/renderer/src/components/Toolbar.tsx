@@ -4,6 +4,7 @@ import { describeEncryption, readBucketEncryption, resolveUploadEncryption } fro
 import { useSession } from '../store/session'
 import type { BucketEncryption, UploadEncryption } from '@shared/types'
 import { ConfirmDialog, LinkDialog, PromptDialog, StorageClassDialog } from './dialogs'
+import { ContextMenu, type MenuItem } from './ContextMenu'
 import { DestinationDialog } from './DestinationDialog'
 import { SyncDialog } from './SyncDialog'
 import { UploadDialog } from './UploadDialog'
@@ -12,6 +13,7 @@ import {
   CopyIcon,
   DownloadIcon,
   KeyIcon,
+  InfoIcon,
   MoveIcon,
   SyncIcon,
   LinkIcon,
@@ -40,6 +42,9 @@ export function Toolbar() {
   const connections = useSession((state) => state.connections)
   const uploadOverride = useSession((state) => state.uploadOverride)
   const setUploadOverride = useSession((state) => state.setUploadOverride)
+  const contextMenu = useSession((state) => state.contextMenu)
+  const setContextMenu = useSession((state) => state.setContextMenu)
+  const setDetailsKey = useSession((state) => state.setDetailsKey)
   const filter = useSession((state) => state.filter)
   const setFilter = useSession((state) => state.setFilter)
   const refresh = useSession((state) => state.refresh)
@@ -241,6 +246,60 @@ export function Toolbar() {
   }
 
   const currentName = singleObject ? (selectedKeys[0].split('/').pop() ?? '') : ''
+
+  const menuItems: MenuItem[] = [
+    {
+      label: 'Details',
+      icon: <InfoIcon />,
+      onSelect: () => setDetailsKey(selectedKeys[0]),
+      disabledReason: singleObject ? undefined : 'Select exactly one object'
+    },
+    {
+      label: 'Download',
+      icon: <DownloadIcon />,
+      onSelect: () => void download(false),
+      disabledReason: selectedCount === 0 ? 'Nothing selected' : undefined
+    },
+    {
+      label: 'Share link',
+      icon: <LinkIcon />,
+      onSelect: () => void share(),
+      disabledReason: singleObject ? undefined : 'Select exactly one object'
+    },
+    {
+      label: 'Rename',
+      icon: <RenameIcon />,
+      separated: true,
+      onSelect: () => setDialog('rename'),
+      disabledReason: singleObject ? undefined : 'Select exactly one object'
+    },
+    {
+      label: 'Copy to',
+      icon: <CopyIcon />,
+      onSelect: () => setDialog('copy'),
+      disabledReason: selectedCount === 0 ? 'Nothing selected' : undefined
+    },
+    {
+      label: 'Move to',
+      icon: <MoveIcon />,
+      onSelect: () => setDialog('move'),
+      disabledReason: selectedCount === 0 ? 'Nothing selected' : undefined
+    },
+    {
+      label: 'Change storage class',
+      icon: <ArchiveIcon />,
+      onSelect: () => setDialog('class'),
+      disabledReason: selectedKeys.length === 0 ? 'Select objects' : undefined
+    },
+    {
+      label: 'Delete',
+      icon: <TrashIcon />,
+      separated: true,
+      danger: true,
+      onSelect: () => setDialog('delete'),
+      disabledReason: selectedCount === 0 ? 'Nothing selected' : undefined
+    }
+  ]
 
   return (
     <>
@@ -447,6 +506,15 @@ export function Toolbar() {
           error={error}
           onConfirm={(value) => void changeStorageClass(value)}
           onCancel={() => setDialog(null)}
+        />
+      ) : null}
+
+      {contextMenu ? (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={menuItems}
+          onClose={() => setContextMenu(null)}
         />
       ) : null}
 

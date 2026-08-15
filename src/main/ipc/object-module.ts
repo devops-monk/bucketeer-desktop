@@ -9,7 +9,8 @@ import type {
   RenameRequest,
   RestoreRequest,
   SetStorageClassRequest,
-  TransferObjectsRequest
+  TransferObjectsRequest,
+  VersionActionRequest
 } from '@shared/types'
 import type { BucketService } from '../app/bucket-service'
 import type { ObjectService } from '../app/object-service'
@@ -29,6 +30,15 @@ export class ObjectModule implements IpcModule {
       this.service.createFolder(request)
     )
     router.handle(Channels.objectsPresign, (request: PresignRequest) => this.service.presign(request))
+    router.handle(Channels.objectsVersions, (connectionId: string, bucket: string, key: string) =>
+      this.service.versions(connectionId, bucket, key)
+    )
+    router.handle(Channels.objectsRestoreVersion, (request: VersionActionRequest) =>
+      this.service.restoreVersion(request)
+    )
+    router.handle(Channels.objectsDeleteVersion, (request: VersionActionRequest) =>
+      this.service.deleteVersion(request)
+    )
     router.handle(Channels.objectsGetTags, (connectionId: string, bucket: string, key: string) =>
       this.service.tags(connectionId, bucket, key)
     )

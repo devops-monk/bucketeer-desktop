@@ -9,6 +9,7 @@ import type {
   KmsKey,
   ObjectDetail,
   ObjectHeaders,
+  ObjectVersion,
   S3Object,
   SsoLoginResult,
   SsoPending,
@@ -128,6 +129,16 @@ export interface ObjectStorage {
   /** Writes the zero-byte marker object that makes an empty folder visible. */
   createFolder(connection: Connection, bucket: string, key: string): Promise<void>
   presign(connection: Connection, bucket: string, key: string, expiresInSeconds: number): Promise<string>
+
+  /**
+   * Every stored version of the objects under a prefix, newest first, including the
+   * delete markers that make an object look absent.
+   */
+  listVersions(connection: Connection, bucket: string, prefix: string): Promise<ObjectVersion[]>
+  /** Copies an old version over the current one, which is how S3 "restores". */
+  restoreVersion(connection: Connection, bucket: string, key: string, versionId: string): Promise<void>
+  /** Removes one specific version. Unlike an ordinary delete, this cannot be undone. */
+  deleteVersion(connection: Connection, bucket: string, key: string, versionId: string): Promise<void>
 
   /** Tags on a single object. */
   getTags(connection: Connection, bucket: string, key: string): Promise<Record<string, string>>

@@ -7,7 +7,9 @@ import {
   CopyObjectCommand,
   CreateBucketCommand,
   DeleteBucketCommand,
+  DeleteObjectCommand,
   GetObjectTaggingCommand,
+  ListObjectVersionsCommand,
   PutObjectTaggingCommand,
   RestoreObjectCommand,
   GetBucketEncryptionCommand,
@@ -28,6 +30,7 @@ import type {
   ListingPage,
   ObjectDetail,
   ObjectHeaders,
+  ObjectVersion,
   S3Object
 } from '@shared/types'
 import type {
@@ -356,6 +359,104 @@ export class S3ObjectStorage implements ObjectStorage {
           : {})
       })
     )
+  }
+
+  /**
+   * Lists versions and delete markers together, because they are two halves of one
+   * history: a delete marker is what makes an object look gone, and seeing it is the
+   * only way to understand why an object that exists cannot be found.
+   */
+  async listVersions(
+    connection: Connection,
+    bucket: string,
+    prefix: string
+  ): Promise<ObjectVersion[]> {
+    const client = await this.factory.forBucket(connection, bucket)
+    const found: ObjectVersion[] = []
+
+    let keyMarker: string | undefined
+    let versionMarker: string | undefined
+
+    do {
+      const result = await client.send(
+        new ListObjectVersionsCommand({
+          Bucket: bucket,
+          Prefix: prefix || undefined,
+          KeyMarker: keyMarker,
+          VersionIdMarker: versionMarker,
+          MaxKeys: PAGE_SIZE
+        })
+      )
+
+      for (const version of result.Versions ?? []) {
+        if (!version.Key || !version.VersionId) continue
+        found.push({
+          key: version.Key,
+          versionId: version.VersionId,
+          size: version.Size ?? 0,
+          lastModified: version.LastModified?.toISOString(),
+          etag: cleanETag(version.ETag),
+          storageClass: version.StorageClass,
+          isLatest: version.IsLatest ?? false,
+          isDeleteMarker: false
+        })
+      }
+
+      for (const marker of result.DeleteMarkers ?? []) {
+        if (!marker.Key || !marker.VersionId) continue
+        found.push({
+          key: marker.Key,
+          versionId: marker.VersionId,
+          size: 0,
+          lastModified: marker.LastModified?.toISOString(),
+          isLatest: marker.IsLatest ?? false,
+          isDeleteMarker: true
+        })
+      }
+
+      keyMarker = result.IsTruncated ? result.NextKeyMarker : undefined
+      versionMarker = result.IsTruncated ? result.NextVersionIdMarker : undefined
+    } while (keyMarker || versionMarker)
+
+    // Newest first, which is the order people reason about history in.
+    return found.sort(
+      (a, b) => Date.parse(b.lastModified ?? '') - Date.parse(a.lastModified ?? '')
+    )
+  }
+
+  /**
+   * Restores by copying the old version over the current one.
+   *
+   * Deliberately additive: the version being replaced stays in the history, so a restore
+   * is itself undoable. S3 has no other mechanism — there is no "revert".
+   */
+  async restoreVersion(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    versionId: string
+  ): Promise<void> {
+    const client = await this.factory.forBucket(connection, bucket)
+    await client.send(
+      new CopyObjectCommand({
+        Bucket: bucket,
+        CopySource: `${bucket}/${encodeURIComponent(key).replace(/%2F/g, '/')}?versionId=${versionId}`,
+        Key: key,
+        ...(connection.kmsKeyId
+          ? { ServerSideEncryption: 'aws:kms' as const, SSEKMSKeyId: connection.kmsKeyId }
+          : {})
+      })
+    )
+  }
+
+  async deleteVersion(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    versionId: string
+  ): Promise<void> {
+    const client = await this.factory.forBucket(connection, bucket)
+    await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key, VersionId: versionId }))
   }
 
   async getTags(

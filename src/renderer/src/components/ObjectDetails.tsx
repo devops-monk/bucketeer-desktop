@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ObjectDetail } from '@shared/types'
+import type { ObjectDetail, ObjectVersion } from '@shared/types'
 import { api, messageFor } from '../lib/api'
 import { formatBytes, formatFullTimestamp } from '../lib/format'
 import { useSession } from '../store/session'
 import { Button, Input, Tooltip } from './primitives'
 
-type Tab = 'details' | 'headers' | 'tags'
+type Tab = 'details' | 'headers' | 'tags' | 'versions'
 
 /**
  * Everything about one object other than its bytes.
@@ -55,7 +55,7 @@ export function ObjectDetails({ objectKey, onClose }: { objectKey: string; onClo
       </p>
 
       <nav className="flex shrink-0 gap-1 border-b border-line-soft px-2 py-1.5">
-        {(['details', 'headers', 'tags'] as Tab[]).map((value) => (
+        {(['details', 'headers', 'tags', 'versions'] as Tab[]).map((value) => (
           <button
             key={value}
             onClick={() => setTab(value)}
@@ -81,6 +81,8 @@ export function ObjectDetails({ objectKey, onClose }: { objectKey: string; onClo
         ) : null}
 
         {detail && tab === 'tags' ? <TagsEditor objectKey={objectKey} /> : null}
+
+        {tab === 'versions' ? <Versions objectKey={objectKey} onChanged={load} /> : null}
       </div>
     </aside>
   )
@@ -402,6 +404,173 @@ function TagsEditor({ objectKey }: { objectKey: string }) {
 
       {error ? <p className="text-[11.5px] text-danger">{error}</p> : null}
       {saved ? <p className="text-[11.5px] text-success">Tags updated.</p> : null}
+    </div>
+  )
+}
+
+/**
+ * Every stored version of this object.
+ *
+ * On a versioned bucket an ordinary delete only adds a marker, so "deleted" objects are
+ * still there and completely invisible from a listing. This is the only place that shows
+ * them — and the only place a previous version can be brought back.
+ */
+function Versions({ objectKey, onChanged }: { objectKey: string; onChanged: () => Promise<void> }) {
+  const connectionId = useSession((state) => state.activeConnectionId)
+  const location = useSession((state) => state.location)
+  const refresh = useSession((state) => state.refresh)
+
+  const [versions, setVersions] = useState<ObjectVersion[] | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    if (!connectionId || !location) return
+    setError(null)
+    try {
+      setVersions(await api.objects.versions(connectionId, location.bucket, objectKey))
+    } catch (failure) {
+      setError(messageFor(failure))
+      setVersions([])
+    }
+  }, [connectionId, location, objectKey])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  async function restore(versionId: string) {
+    if (!connectionId || !location) return
+    setBusy(versionId)
+    setError(null)
+    try {
+      await api.objects.restoreVersion({ connectionId, bucket: location.bucket, key: objectKey, versionId })
+      await load()
+      await onChanged()
+      await refresh()
+    } catch (failure) {
+      setError(messageFor(failure))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function remove(versionId: string) {
+    if (!connectionId || !location) return
+    setBusy(versionId)
+    setError(null)
+    try {
+      await api.objects.deleteVersion({ connectionId, bucket: location.bucket, key: objectKey, versionId })
+      setConfirming(null)
+      await load()
+      await refresh()
+    } catch (failure) {
+      setError(messageFor(failure))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  if (!versions) return <p className="text-[12px] text-faint">Loading…</p>
+
+  if (versions.length === 0) {
+    return (
+      <p className="text-[12px] leading-relaxed text-muted">
+        No version history. Either this bucket has versioning switched off, or the credentials
+        cannot list versions.
+      </p>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[11.5px] leading-relaxed text-muted">
+        {versions.length} {versions.length === 1 ? 'version' : 'versions'}, newest first.
+        Restoring copies an old version over the current one and keeps everything else.
+      </p>
+
+      <ul className="flex flex-col gap-1.5">
+        {versions.map((version) => (
+          <li
+            key={version.versionId}
+            className={`rounded-md border px-3 py-2 ${
+              version.isLatest ? 'border-accent-soft bg-accent-soft/30' : 'border-line bg-sunken'
+            }`}
+          >
+            <div className="flex items-baseline gap-2">
+              <span className="tabular text-[11.5px] text-text">
+                {formatFullTimestamp(version.lastModified)}
+              </span>
+              {version.isLatest ? (
+                <span className="tabular text-[9.5px] tracking-wide text-accent-ink uppercase">
+                  current
+                </span>
+              ) : null}
+              {version.isDeleteMarker ? (
+                <span className="tabular text-[9.5px] tracking-wide text-danger uppercase">
+                  delete marker
+                </span>
+              ) : null}
+              <div className="flex-1" />
+              <span className="tabular text-[11px] text-faint">
+                {version.isDeleteMarker ? '—' : formatBytes(version.size)}
+              </span>
+            </div>
+
+            <p className="tabular mt-0.5 truncate text-[10px] text-faint">{version.versionId}</p>
+
+            {confirming === version.versionId ? (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="flex-1 text-[11px] leading-snug text-danger">
+                  Delete this version for good? It cannot be recovered.
+                </span>
+                <Button size="sm" onClick={() => setConfirming(null)}>
+                  Keep
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => void remove(version.versionId)}>
+                  Delete
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-1.5 flex gap-1.5">
+                {!version.isLatest && !version.isDeleteMarker ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => void restore(version.versionId)}
+                    disabled={busy !== null}
+                  >
+                    {busy === version.versionId ? 'Restoring…' : 'Restore this version'}
+                  </Button>
+                ) : null}
+                {version.isDeleteMarker ? (
+                  <Tooltip label="Removing the marker makes the object visible again">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => void remove(version.versionId)}
+                      disabled={busy !== null}
+                    >
+                      Undelete
+                    </Button>
+                  </Tooltip>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => setConfirming(version.versionId)}
+                  disabled={busy !== null}
+                >
+                  Delete permanently
+                </Button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {error ? <p className="text-[11.5px] text-danger">{error}</p> : null}
     </div>
   )
 }

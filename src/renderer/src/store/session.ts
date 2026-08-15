@@ -33,6 +33,10 @@ interface SessionState {
   filter: string
   /** An explicit encryption choice for uploads, until the bucket changes. */
   uploadOverride: UploadEncryption | null
+  /** Where the right-click menu is open, if it is. */
+  contextMenu: { x: number; y: number } | null
+  /** The object whose details panel is open. */
+  detailsKey: string | null
   loading: boolean
   loadingMore: boolean
   error: string | null
@@ -51,6 +55,8 @@ interface SessionState {
   selectAll: () => void
   setFilter: (filter: string) => void
   setUploadOverride: (encryption: UploadEncryption | null) => void
+  setContextMenu: (position: { x: number; y: number } | null) => void
+  setDetailsKey: (key: string | null) => void
 }
 
 export const useSession = create<SessionState>((set, get) => ({
@@ -63,6 +69,8 @@ export const useSession = create<SessionState>((set, get) => ({
   prefixSelection: new Set(),
   filter: '',
   uploadOverride: null,
+  contextMenu: null,
+  detailsKey: null,
   loading: false,
   loadingMore: false,
   error: null,
@@ -126,7 +134,14 @@ export const useSession = create<SessionState>((set, get) => ({
     const { activeConnectionId, location } = get()
     if (!activeConnectionId || !location) return
 
-    set({ loading: true, error: null, selection: new Set(), prefixSelection: new Set() })
+    set({
+      loading: true,
+      error: null,
+      selection: new Set(),
+      prefixSelection: new Set(),
+      contextMenu: null,
+      detailsKey: null
+    })
     try {
       const listing = await api.objects.list({
         connectionId: activeConnectionId,
@@ -184,6 +199,14 @@ export const useSession = create<SessionState>((set, get) => ({
 
   setUploadOverride(encryption) {
     set({ uploadOverride: encryption })
+  },
+
+  setContextMenu(position) {
+    set({ contextMenu: position })
+  },
+
+  setDetailsKey(key) {
+    set({ detailsKey: key })
   },
 
   toggleSelection(key, additive) {

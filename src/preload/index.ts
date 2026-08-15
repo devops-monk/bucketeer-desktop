@@ -13,6 +13,7 @@ import type {
   ObjectHeaders,
   PresignRequest,
   RestoreRequest,
+  VersionActionRequest,
   RenameRequest,
   SsoPending,
   SyncPlan,
@@ -65,6 +66,12 @@ const api: BucketeerApi = {
     copy: (request: TransferObjectsRequest) => ipcRenderer.invoke(Channels.objectsCopy, request),
     setStorageClass: (request: SetStorageClassRequest) =>
       ipcRenderer.invoke(Channels.objectsStorageClass, request),
+    versions: (connectionId: string, bucket: string, key: string) =>
+      ipcRenderer.invoke(Channels.objectsVersions, connectionId, bucket, key),
+    restoreVersion: (request: VersionActionRequest) =>
+      ipcRenderer.invoke(Channels.objectsRestoreVersion, request),
+    deleteVersion: (request: VersionActionRequest) =>
+      ipcRenderer.invoke(Channels.objectsDeleteVersion, request),
     tags: (connectionId: string, bucket: string, key: string) =>
       ipcRenderer.invoke(Channels.objectsGetTags, connectionId, bucket, key),
     setTags: (connectionId: string, bucket: string, key: string, tags: Record<string, string>) =>

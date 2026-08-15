@@ -27,7 +27,6 @@ import { useTransfers } from './store/transfers'
 export function App() {
   const [editing, setEditing] = useState<ConnectionSummary | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
-  const [detailsKey, setDetailsKey] = useState<string | null>(null)
   const [dropActive, setDropActive] = useState(false)
   const [dropError, setDropError] = useState<string | null>(null)
 
@@ -44,6 +43,8 @@ export function App() {
   const clearSelection = useSession((state) => state.clearSelection)
 
   const uploadOverride = useSession((state) => state.uploadOverride)
+  const detailsKey = useSession((state) => state.detailsKey)
+  const setDetailsKey = useSession((state) => state.setDetailsKey)
   const subscribeTransfers = useTransfers((state) => state.subscribe)
 
   useEffect(() => {
@@ -186,7 +187,7 @@ export function App() {
               detail={`Nothing is stored under ${location.prefix || location.bucket} yet. Drop files here, or use Upload.`}
             />
           ) : (
-            <ObjectTable onOpenDetails={setDetailsKey} />
+            <ObjectTable />
           )}
 
           {dropActive ? (

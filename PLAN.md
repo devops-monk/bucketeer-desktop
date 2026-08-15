@@ -66,7 +66,7 @@ without them.
 
 | Feature | Effort | Notes |
 | --- | --- | --- |
-| Versions | M | List, restore, permanently delete; delete markers |
+| Versions | M | List, restore, undelete, permanently delete — **done** |
 | Metadata and HTTP headers | M | Editable in the details panel — **done** |
 | Object tags | S | Editable in the details panel — **done** |
 | Glacier restore | M | Started from the details panel, status shown — **done** |

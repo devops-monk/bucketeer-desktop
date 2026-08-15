@@ -1,7 +1,9 @@
 import type {
   CreateFolderRequest,
   ObjectHeaders,
+  ObjectVersion,
   RestoreRequest,
+  VersionActionRequest,
   DeleteRequest,
   DeleteResult,
   PresignRequest,
@@ -78,6 +80,41 @@ export class ObjectService {
 
     const connection = await this.repository.get(request.connectionId)
     await this.storage.createFolder(connection, request.bucket, `${request.prefix}${name}/`)
+  }
+
+  async versions(connectionId: string, bucket: string, key: string): Promise<ObjectVersion[]> {
+    // Prefixed by the exact key, then filtered: S3 lists by prefix, so "reports/a.csv"
+    // would otherwise also return "reports/a.csv.bak".
+    const versions = await this.storage.listVersions(
+      await this.repository.get(connectionId),
+      bucket,
+      key
+    )
+    return versions.filter((version) => version.key === key)
+  }
+
+  async restoreVersion(request: VersionActionRequest): Promise<void> {
+    await this.storage.restoreVersion(
+      await this.repository.get(request.connectionId),
+      request.bucket,
+      request.key,
+      request.versionId
+    )
+  }
+
+  /**
+   * Deletes one version for good.
+   *
+   * The ordinary delete on a versioned bucket only adds a delete marker, so the data is
+   * still there and recoverable. This is the one that is not.
+   */
+  async deleteVersion(request: VersionActionRequest): Promise<void> {
+    await this.storage.deleteVersion(
+      await this.repository.get(request.connectionId),
+      request.bucket,
+      request.key,
+      request.versionId
+    )
   }
 
   async tags(connectionId: string, bucket: string, key: string): Promise<Record<string, string>> {

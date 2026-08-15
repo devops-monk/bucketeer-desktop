@@ -64,6 +64,12 @@ export const api = {
     copy: (...args: Parameters<typeof bridge.objects.copy>) => unwrap(bridge.objects.copy(...args)),
     setStorageClass: (...args: Parameters<typeof bridge.objects.setStorageClass>) =>
       unwrap(bridge.objects.setStorageClass(...args)),
+    versions: (...args: Parameters<typeof bridge.objects.versions>) =>
+      unwrap(bridge.objects.versions(...args)),
+    restoreVersion: (...args: Parameters<typeof bridge.objects.restoreVersion>) =>
+      unwrap(bridge.objects.restoreVersion(...args)),
+    deleteVersion: (...args: Parameters<typeof bridge.objects.deleteVersion>) =>
+      unwrap(bridge.objects.deleteVersion(...args)),
     tags: (...args: Parameters<typeof bridge.objects.tags>) => unwrap(bridge.objects.tags(...args)),
     setTags: (...args: Parameters<typeof bridge.objects.setTags>) =>
       unwrap(bridge.objects.setTags(...args)),

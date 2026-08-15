@@ -6,6 +6,7 @@ import type {
   DeleteBucketRequest,
   SetStorageClassRequest,
   TransferObjectsRequest,
+  VersionActionRequest,
   Connection,
   ConnectionSummary,
   CreateFolderRequest,
@@ -16,6 +17,7 @@ import type {
   ListingPage,
   ObjectDetail,
   ObjectHeaders,
+  ObjectVersion,
   PresignRequest,
   RestoreRequest,
   RenameRequest,
@@ -49,6 +51,9 @@ export const Channels = {
   objectsRename: 'objects:rename',
   objectsCreateFolder: 'objects:create-folder',
   objectsPresign: 'objects:presign',
+  objectsVersions: 'objects:versions',
+  objectsRestoreVersion: 'objects:restore-version',
+  objectsDeleteVersion: 'objects:delete-version',
   objectsGetTags: 'objects:get-tags',
   objectsSetTags: 'objects:set-tags',
   objectsSetHeaders: 'objects:set-headers',
@@ -124,6 +129,12 @@ export interface BucketeerApi {
     /** Server-side copy or move, within a bucket or across buckets. */
     copy(request: TransferObjectsRequest): Promise<Result<CopyResult>>
     setStorageClass(request: SetStorageClassRequest): Promise<Result<CopyResult>>
+    /** Every stored version of one object, newest first, including delete markers. */
+    versions(connectionId: string, bucket: string, key: string): Promise<Result<ObjectVersion[]>>
+    /** Copies an old version over the current one. The replaced version is kept. */
+    restoreVersion(request: VersionActionRequest): Promise<Result<void>>
+    /** Removes one version permanently. This cannot be undone. */
+    deleteVersion(request: VersionActionRequest): Promise<Result<void>>
     tags(connectionId: string, bucket: string, key: string): Promise<Result<Record<string, string>>>
     /** Replaces the whole tag set; S3 has no partial update. */
     setTags(

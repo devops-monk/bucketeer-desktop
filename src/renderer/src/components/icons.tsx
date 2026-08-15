@@ -188,3 +188,12 @@ export function SyncIcon({ className }: IconProps) {
     </Svg>
   )
 }
+
+export function InfoIcon({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="8" cy="8" r="6.25" />
+      <path d="M8 7.25v3.5M8 4.9v.05" />
+    </Svg>
+  )
+}
