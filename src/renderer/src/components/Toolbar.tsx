@@ -80,10 +80,17 @@ export function Toolbar() {
     }
   }
 
-  async function download() {
+  /**
+   * Downloads go to the OS Downloads folder without asking. Dragging objects out of the
+   * window is impossible in Electron, so downloading has to be as close to one gesture
+   * as it can be; holding Alt still offers the folder picker for anyone who wants it.
+   */
+  async function download(chooseFolder: boolean) {
     setError(null)
     try {
-      const destination = await api.dialog.pickDirectory()
+      const destination = chooseFolder
+        ? await api.dialog.pickDirectory()
+        : await api.app.downloadsFolder()
       if (!destination) return
       await api.transfers.download({
         connectionId: connectionId as string,
@@ -190,11 +197,15 @@ export function Toolbar() {
           label={
             selectedCount === 0
               ? 'Select objects or folders first'
-              : 'Save the selection to a folder on this machine'
+              : 'Save to your Downloads folder. Hold Alt to choose where.'
           }
           side="bottom"
         >
-          <Button variant="secondary" onClick={() => void download()} disabled={selectedCount === 0}>
+          <Button
+            variant="secondary"
+            onClick={(event) => void download(event.altKey)}
+            disabled={selectedCount === 0}
+          >
             <DownloadIcon />
             Download
           </Button>

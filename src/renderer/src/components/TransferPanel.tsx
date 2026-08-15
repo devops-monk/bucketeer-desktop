@@ -1,4 +1,5 @@
 import type { Transfer } from '@shared/types'
+import { api } from '../lib/api'
 import { formatBytes } from '../lib/format'
 import { isActive, summarise, useTransfers } from '../store/transfers'
 import { DownloadIcon, KeyIcon, UploadIcon } from './icons'
@@ -151,6 +152,16 @@ function TransferRow({ transfer, onCancel }: { transfer: Transfer; onCancel: () 
         <Button onClick={onCancel} size="sm" aria-label={`Cancel ${transfer.name}`}>
           Cancel
         </Button>
+      ) : transfer.kind === 'download' && transfer.status === 'done' ? (
+        <Tooltip label="Show this file on your machine">
+          <Button
+            size="sm"
+            onClick={() => void api.app.revealFile(transfer.localPath)}
+            aria-label={`Show ${transfer.name} in the file manager`}
+          >
+            Show
+          </Button>
+        </Tooltip>
       ) : null}
     </li>
   )

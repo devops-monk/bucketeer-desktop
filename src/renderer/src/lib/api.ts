@@ -72,7 +72,9 @@ export const api = {
     version: () => unwrap(bridge.app.version()),
     getTheme: () => unwrap(bridge.app.getTheme()),
     setTheme: (...args: Parameters<typeof bridge.app.setTheme>) =>
-      unwrap(bridge.app.setTheme(...args))
+      unwrap(bridge.app.setTheme(...args)),
+    downloadsFolder: () => unwrap(bridge.app.downloadsFolder()),
+    revealFile: (path: string) => unwrap(bridge.app.revealFile(path))
   },
   dialog: {
     pickFiles: () => unwrap(bridge.dialog.pickFiles()),

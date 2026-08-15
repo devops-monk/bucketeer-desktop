@@ -70,7 +70,9 @@ const api: BucketeerApi = {
   app: {
     version: () => ipcRenderer.invoke(Channels.appVersion),
     getTheme: () => ipcRenderer.invoke(Channels.appGetTheme),
-    setTheme: (theme: ThemePreference) => ipcRenderer.invoke(Channels.appSetTheme, theme)
+    setTheme: (theme: ThemePreference) => ipcRenderer.invoke(Channels.appSetTheme, theme),
+    downloadsFolder: () => ipcRenderer.invoke(Channels.appDownloadsFolder),
+    revealFile: (path: string) => ipcRenderer.invoke(Channels.appRevealFile, path)
   },
   dialog: {
     pickFiles: () => ipcRenderer.invoke(Channels.dialogPickFiles),

@@ -1,4 +1,4 @@
-import { app } from 'electron'
+import { app, shell } from 'electron'
 import { Channels } from '@shared/ipc'
 import type { ThemePreference } from '@shared/types'
 import type { SettingsStore } from '../infra/settings-store'
@@ -12,5 +12,12 @@ export class AppModule implements IpcModule {
     router.handle(Channels.appVersion, () => app.getVersion())
     router.handle(Channels.appGetTheme, async () => (await this.settings.read()).theme)
     router.handle(Channels.appSetTheme, (theme: ThemePreference) => this.settings.setTheme(theme))
+    router.handle(Channels.appDownloadsFolder, () => app.getPath('downloads'))
+    // Dragging an object out of the window is not possible — Electron's startDrag needs
+    // a file that already exists, and it exposes no promised-file API — so the next best
+    // thing is putting the downloaded file in front of the user.
+    router.handle(Channels.appRevealFile, (path: string) => {
+      shell.showItemInFolder(path)
+    })
   }
 }

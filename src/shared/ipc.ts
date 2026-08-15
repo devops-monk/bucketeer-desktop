@@ -51,6 +51,8 @@ export const Channels = {
   appVersion: 'app:version',
   appGetTheme: 'app:get-theme',
   appSetTheme: 'app:set-theme',
+  appRevealFile: 'app:reveal-file',
+  appDownloadsFolder: 'app:downloads-folder',
   dialogPickFiles: 'dialog:pick-files',
   dialogPickDirectory: 'dialog:pick-directory'
 } as const
@@ -111,6 +113,10 @@ export interface BucketeerApi {
     version(): Promise<Result<string>>
     getTheme(): Promise<Result<ThemePreference>>
     setTheme(theme: ThemePreference): Promise<Result<void>>
+    /** The OS Downloads folder, used when a download is not given a destination. */
+    downloadsFolder(): Promise<Result<string>>
+    /** Shows a finished transfer in Finder or Explorer. */
+    revealFile(path: string): Promise<Result<void>>
   }
   dialog: {
     /** Native file picker. Empty array means the user cancelled. */
