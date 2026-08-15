@@ -20,6 +20,8 @@ async function start(): Promise<void> {
   await app.whenReady()
   // Applied before any window exists, so the first paint is already the right theme.
   await container.settings.applyStoredTheme()
+  // Concurrency, part size, bandwidth and proxy, before anything can transfer.
+  await container.applyPreferences()
   container.registerIpc()
   createMainWindow()
 

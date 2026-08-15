@@ -87,10 +87,10 @@ without them.
 | Feature | Effort | Notes |
 | --- | --- | --- |
 | Search across a bucket | L | Streaming walk with progress, never held in memory |
-| Bandwidth limits | M | Separate up and down |
-| Proxy support | S | System proxy plus manual override |
-| Transfer acceleration | S | Per bucket, detected |
-| Tunable concurrency and part size | S | Per connection |
+| Bandwidth limits | M | One shared ceiling, in preferences — **done** |
+| Proxy support | S | In preferences, applied to every AWS request — **done** |
+| Transfer acceleration | S | Per connection — **done** |
+| Tunable concurrency and part size | S | In preferences — **done** |
 
 ### Desktop integration — **done**
 

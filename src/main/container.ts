@@ -34,6 +34,8 @@ import { IpcRouter } from './ipc/router'
 export interface Container {
   settings: SettingsStore
   system: SystemIntegration
+  /** Pushes stored preferences into the pieces that act on them. */
+  applyPreferences(): Promise<void>
   connections: ConnectionService
   browsing: BrowsingService
   objects: ObjectService
@@ -50,7 +52,8 @@ export function createContainer(): Container {
   const vault = new SafeStorageVault()
   const repository = new FileConnectionRepository(vault, app.getPath('userData'))
   const credentials = createCredentialResolver()
-  const storage = new S3ObjectStorage(new S3ClientFactory(credentials), credentials)
+  const clientFactory = new S3ClientFactory(credentials)
+  const storage = new S3ObjectStorage(clientFactory, credentials)
   const settings = new SettingsStore()
   const profiles = new SharedConfigProfileDirectory()
   // Wrapping rather than sitting beside it: one path for "the queue changed", so the
@@ -83,9 +86,17 @@ export function createContainer(): Container {
 
   const sync = new SyncService(repository, storage, transfers)
 
+  const applyPreferences = async (): Promise<void> => {
+    const { preferences } = await settings.read()
+    transfers.applyPreferences(preferences)
+    storage.applyPreferences(preferences)
+    clientFactory.setProxy(preferences.proxyUrl)
+  }
+
   return {
     settings,
     system,
+    applyPreferences,
     connections,
     browsing,
     objects,
@@ -98,7 +109,7 @@ export function createContainer(): Container {
         new BrowsingModule(browsing),
         new ObjectModule(objects, buckets),
         new TransferModule(transfers, sync),
-        new AppModule(settings)
+        new AppModule(settings, applyPreferences)
       ]
       for (const module of modules) module.register(router)
     },

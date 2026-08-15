@@ -39,6 +39,8 @@ export interface Connection {
   forcePathStyle?: boolean
   /** Default KMS key for uploads on this connection. Overridable per transfer. */
   kmsKeyId?: string
+  /** Routes transfers through S3 Transfer Acceleration, when the bucket allows it. */
+  transferAcceleration?: boolean
   createdAt: string
 }
 
@@ -183,6 +185,18 @@ export interface SsoPending {
 export interface SsoLoginResult {
   profileName: string
   expiresAt: string
+}
+
+/** Settings that apply to every connection. */
+export interface Preferences {
+  /** How many files move at once. */
+  concurrency: number
+  /** Multipart chunk size in MB. Larger means fewer requests and coarser retries. */
+  partSizeMb: number
+  /** Combined transfer ceiling in MB/s. Zero means no limit. */
+  bandwidthMbps: number
+  /** Proxy URL for all AWS traffic, e.g. http://proxy.corp:3128. Empty means none. */
+  proxyUrl: string
 }
 
 /** Which colour scheme the app uses. "system" follows the OS. */

@@ -103,6 +103,9 @@ export const api = {
   },
   app: {
     version: () => unwrap(bridge.app.version()),
+    getPreferences: () => unwrap(bridge.app.getPreferences()),
+    setPreferences: (...args: Parameters<typeof bridge.app.setPreferences>) =>
+      unwrap(bridge.app.setPreferences(...args)),
     getTheme: () => unwrap(bridge.app.getTheme()),
     setTheme: (...args: Parameters<typeof bridge.app.setTheme>) =>
       unwrap(bridge.app.setTheme(...args)),

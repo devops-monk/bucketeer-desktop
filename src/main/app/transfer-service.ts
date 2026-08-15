@@ -16,8 +16,8 @@ import type {
 } from '../core/ports'
 import { TaskQueue } from './transfer-queue'
 
-/** How many files move at once. Enough to saturate a link without starving the UI. */
-const CONCURRENCY = 3
+/** Used until preferences are read, and when a stored value is nonsense. */
+const DEFAULT_CONCURRENCY = 3
 /** Progress is throttled to this interval, per transfer, before crossing IPC. */
 const PROGRESS_INTERVAL_MS = 120
 
@@ -32,9 +32,10 @@ const PROGRESS_INTERVAL_MS = 120
 export class TransferService {
   private readonly transfers = new Map<string, Transfer>()
   private readonly controllers = new Map<string, AbortController>()
-  private readonly queue = new TaskQueue(CONCURRENCY)
+  private queue = new TaskQueue(DEFAULT_CONCURRENCY)
   /** Coalesces bursts of progress updates into one broadcast per tick. */
   private flushHandle: NodeJS.Timeout | null = null
+  private concurrency = DEFAULT_CONCURRENCY
 
   constructor(
     private readonly repository: ConnectionRepository,
@@ -43,6 +44,19 @@ export class TransferService {
     private readonly ids: IdGenerator,
     private readonly clock: Clock
   ) {}
+
+  /**
+   * Applies preferences. Concurrency takes effect for work queued afterwards — a queue
+   * already running is left alone rather than being rebuilt underneath in-flight
+   * transfers.
+   */
+  applyPreferences(preferences: { concurrency: number }): void {
+    const concurrency = Math.min(Math.max(1, Math.round(preferences.concurrency)), 16)
+    if (concurrency !== this.concurrency) {
+      this.concurrency = concurrency
+      this.queue = new TaskQueue(concurrency)
+    }
+  }
 
   list(): Transfer[] {
     return [...this.transfers.values()]

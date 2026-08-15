@@ -20,6 +20,7 @@ import type {
   ObjectDetail,
   ObjectHeaders,
   ObjectVersion,
+  Preferences,
   PresignRequest,
   RestoreRequest,
   RenameRequest,
@@ -79,6 +80,8 @@ export const Channels = {
   /** Main → renderer: the transfer queue changed. */
   transfersChanged: 'transfers:changed',
   appVersion: 'app:version',
+  appGetPreferences: 'app:get-preferences',
+  appSetPreferences: 'app:set-preferences',
   appGetTheme: 'app:get-theme',
   appSetTheme: 'app:set-theme',
   appRevealFile: 'app:reveal-file',
@@ -184,6 +187,9 @@ export interface BucketeerApi {
   }
   app: {
     version(): Promise<Result<string>>
+    getPreferences(): Promise<Result<Preferences>>
+    /** Saved and applied immediately; transfers already running keep their settings. */
+    setPreferences(preferences: Preferences): Promise<Result<void>>
     getTheme(): Promise<Result<ThemePreference>>
     setTheme(theme: ThemePreference): Promise<Result<void>>
     /** The OS Downloads folder, used when a download is not given a destination. */

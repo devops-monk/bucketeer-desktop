@@ -54,6 +54,7 @@ import type {
   ObjectStorage,
   UploadOptions
 } from '../../core/ports'
+import { RateLimiter, throttle } from '../../app/rate-limiter'
 import type { S3ClientFactory } from './client-factory'
 import { cleanETag, isFolderMarker, toObject, toPrefix } from './mappers'
 
@@ -61,7 +62,7 @@ const PAGE_SIZE = 1000
 /** DeleteObjects accepts 1000 keys per request. */
 const DELETE_BATCH = 1000
 /** 8 MB parts: large enough to keep request overhead low, small enough to retry cheaply. */
-const PART_SIZE = 8 * 1024 * 1024
+const DEFAULT_PART_SIZE = 8 * 1024 * 1024
 /**
  * CRC32C on every upload and download.
  *
@@ -79,10 +80,25 @@ export class S3ObjectStorage implements ObjectStorage {
     { sseAlgorithm: string; kmsKeyId?: string } | null
   >()
 
+  private partSize = DEFAULT_PART_SIZE
+  private readonly limiter = new RateLimiter(0)
+
   constructor(
     private readonly factory: S3ClientFactory,
     private readonly credentials: CredentialResolver
   ) {}
+
+  /**
+   * Part size and the shared bandwidth ceiling. The limiter is one object for the whole
+   * app: limiting each transfer separately would let three of them use three times the
+   * limit.
+   */
+  applyPreferences(preferences: { partSizeMb: number; bandwidthMbps: number }): void {
+    // S3 rejects parts below 5 MB except the last, and 5 GB is its ceiling.
+    const megabytes = Math.min(Math.max(5, Math.round(preferences.partSizeMb)), 512)
+    this.partSize = megabytes * 1024 * 1024
+    this.limiter.setLimit(Math.max(0, preferences.bandwidthMbps) * 1024 * 1024)
+  }
 
   async listBuckets(connection: Connection): Promise<Bucket[]> {
     const result = await this.factory.forConnection(connection).send(new ListBucketsCommand({}))
@@ -251,7 +267,10 @@ export class S3ObjectStorage implements ObjectStorage {
   ): Promise<void> {
     const client = await this.factory.forBucket(connection, bucket)
     const { size } = await stat(localPath)
-    const body = createReadStream(localPath)
+    const file = createReadStream(localPath)
+    // Throttling the source rather than the request: back-pressure then stops the file
+    // being read, instead of buffering it in memory ahead of a slow socket.
+    const body = this.limiter.enabled ? file.pipe(throttle(this.limiter)) : file
 
     const upload = new Upload({
       client,
@@ -270,7 +289,7 @@ export class S3ObjectStorage implements ObjectStorage {
           : {})
       },
       queueSize: 4,
-      partSize: PART_SIZE,
+      partSize: this.partSize,
       leavePartsOnError: false
     })
 
@@ -286,7 +305,7 @@ export class S3ObjectStorage implements ObjectStorage {
       await upload.done()
     } finally {
       options.signal?.removeEventListener('abort', abort)
-      body.destroy()
+      file.destroy()
     }
   }
 
@@ -321,8 +340,14 @@ export class S3ObjectStorage implements ObjectStorage {
       options.onProgress?.(transferred, total)
     })
 
-    // pipeline tears down both streams and removes the partial file's handle on failure.
-    await pipeline(source, createWriteStream(localPath), { signal: options.signal })
+    // pipeline tears down every stream in the chain and closes the partial file on
+    // failure, throttle included.
+    const sink = createWriteStream(localPath)
+    if (this.limiter.enabled) {
+      await pipeline(source, throttle(this.limiter), sink, { signal: options.signal })
+    } else {
+      await pipeline(source, sink, { signal: options.signal })
+    }
   }
 
   async deleteObjects(

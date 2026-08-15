@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ConnectionSummary } from '@shared/types'
 import { api } from '../lib/api'
 import { useSession } from '../store/session'
-import { PlusIcon, RenameIcon } from './icons'
+import { PlusIcon, RenameIcon, SettingsIcon } from './icons'
 import { Button, SearchInput, Tooltip } from './primitives'
+import { PreferencesDialog } from './PreferencesDialog'
 import { ThemeSwitch } from './ThemeSwitch'
 
 /** Above this many, finding a connection by eye stops working and a filter earns its place. */
@@ -30,6 +31,7 @@ export function ConnectionRail({
 
   const [filter, setFilter] = useState('')
   const [version, setVersion] = useState<string | null>(null)
+  const [preferencesOpen, setPreferencesOpen] = useState(false)
 
   useEffect(() => {
     void api.app.version().then(setVersion).catch(() => setVersion(null))
@@ -105,8 +107,15 @@ export function ConnectionRail({
         <span className="eyebrow">Bucketeer</span>
         {version ? <span className="tabular text-[10px] text-faint">v{version}</span> : null}
         <div className="flex-1" />
+        <Tooltip label="Transfers, bandwidth and proxy">
+          <Button size="sm" onClick={() => setPreferencesOpen(true)} aria-label="Preferences">
+            <SettingsIcon className="h-3.5 w-3.5" />
+          </Button>
+        </Tooltip>
         <ThemeSwitch />
       </footer>
+
+      {preferencesOpen ? <PreferencesDialog onClose={() => setPreferencesOpen(false)} /> : null}
     </aside>
   )
 }

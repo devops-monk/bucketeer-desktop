@@ -1,4 +1,6 @@
 import { GetBucketLocationCommand, S3Client } from '@aws-sdk/client-s3'
+import { NodeHttpHandler } from '@smithy/node-http-handler'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 import type { Connection } from '@shared/types'
 import type { CredentialResolver } from '../../core/ports'
 
@@ -11,8 +13,22 @@ import type { CredentialResolver } from '../../core/ports'
 export class S3ClientFactory {
   private readonly clients = new Map<string, S3Client>()
   private readonly bucketRegions = new Map<string, string>()
+  private proxyUrl = ''
 
   constructor(private readonly credentials: CredentialResolver) {}
+
+  /**
+   * Routes AWS traffic through a proxy. Corporate networks commonly require one, and
+   * without it the app simply cannot reach S3 at all.
+   *
+   * Changing it drops every cached client, since the proxy is baked into the handler
+   * each one was built with.
+   */
+  setProxy(url: string): void {
+    if (url === this.proxyUrl) return
+    this.proxyUrl = url
+    this.dispose()
+  }
 
   forConnection(connection: Connection, region?: string): S3Client {
     const effective = region ?? connection.region
@@ -24,6 +40,17 @@ export class S3ClientFactory {
         region: effective,
         credentials: this.credentials.resolve(connection.credentials),
         endpoint: connection.endpoint || undefined,
+        // Acceleration routes through CloudFront's edge; it only applies to AWS itself,
+        // and only when the bucket has it switched on.
+        useAccelerateEndpoint: Boolean(connection.transferAcceleration && !connection.endpoint),
+        ...(this.proxyUrl
+          ? {
+              requestHandler: new NodeHttpHandler({
+                httpsAgent: new HttpsProxyAgent(this.proxyUrl),
+                httpAgent: new HttpsProxyAgent(this.proxyUrl)
+              })
+            }
+          : {}),
         // Non-AWS endpoints almost always need path-style addressing.
         forcePathStyle: connection.forcePathStyle ?? Boolean(connection.endpoint),
         // Buckets often answer from another region; following the redirect keeps

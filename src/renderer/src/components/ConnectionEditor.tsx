@@ -41,6 +41,7 @@ export function ConnectionEditor({ connection, onClose }: Props) {
   const [region, setRegion] = useState(connection?.region ?? 'us-east-1')
   const [endpoint, setEndpoint] = useState(connection?.endpoint ?? '')
   const [kmsKeyId, setKmsKeyId] = useState(connection?.kmsKeyId ?? '')
+  const [acceleration, setAcceleration] = useState(connection?.transferAcceleration ?? false)
   const [kind, setKind] = useState<CredentialKind>(connection?.credentials.kind ?? 'shared-profile')
 
   // Seeded from what was saved. Secrets are absent by design, so a key-based
@@ -134,6 +135,7 @@ export function ConnectionEditor({ connection, onClose }: Props) {
         endpoint: endpoint.trim() || undefined,
         forcePathStyle: Boolean(endpoint.trim()),
         kmsKeyId: kmsKeyId.trim() || undefined,
+        transferAcceleration: acceleration,
         credentials: buildCredentials()
       })
       setSavedId(saved.id)
@@ -399,6 +401,25 @@ export function ConnectionEditor({ connection, onClose }: Props) {
                 </div>
               </Field>
             </div>
+
+            {!endpoint.trim() ? (
+              <label className="flex items-start gap-2.5 rounded-md border border-line bg-sunken px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={acceleration}
+                  onChange={(event) => setAcceleration(event.target.checked)}
+                  className="mt-0.5 accent-[var(--accent)]"
+                />
+                <span>
+                  <span className="block text-[12px] text-text">Use S3 Transfer Acceleration</span>
+                  <span className="block text-[11px] leading-relaxed text-muted">
+                    Routes transfers through the nearest AWS edge location, which is worth real
+                    speed over long distances. It costs more per gigabyte, and only works on
+                    buckets that have it switched on — requests fail if they do not.
+                  </span>
+                </span>
+              </label>
+            ) : null}
 
             {!secretsAvailable && needsSecrets ? (
               <p className="rounded-[3px] border border-danger/40 bg-danger/5 px-3 py-2 text-[11.5px] leading-relaxed text-text">

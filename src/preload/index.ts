@@ -12,6 +12,7 @@ import type {
   DownloadRequest,
   ListObjectsRequest,
   ObjectHeaders,
+  Preferences,
   PresignRequest,
   RestoreRequest,
   VersionActionRequest,
@@ -110,6 +111,9 @@ const api: BucketeerApi = {
   },
   app: {
     version: () => ipcRenderer.invoke(Channels.appVersion),
+    getPreferences: () => ipcRenderer.invoke(Channels.appGetPreferences),
+    setPreferences: (preferences: Preferences) =>
+      ipcRenderer.invoke(Channels.appSetPreferences, preferences),
     getTheme: () => ipcRenderer.invoke(Channels.appGetTheme),
     setTheme: (theme: ThemePreference) => ipcRenderer.invoke(Channels.appSetTheme, theme),
     downloadsFolder: () => ipcRenderer.invoke(Channels.appDownloadsFolder),
