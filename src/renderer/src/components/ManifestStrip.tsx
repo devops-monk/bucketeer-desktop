@@ -21,7 +21,7 @@ export function ManifestStrip() {
   const selectedObjects = listing?.objects.filter((object) => selection.has(object.key)) ?? []
 
   return (
-    <footer className="flex h-7 shrink-0 items-center gap-0 border-t border-copper-dim bg-panel text-[11px]">
+    <footer className="flex h-7 shrink-0 items-center gap-0 border-t border-accent-soft bg-panel text-[11px]">
       <Cell>
         {connection ? (
           <span className="text-muted">{connection.name}</span>
@@ -60,8 +60,8 @@ export function ManifestStrip() {
 
       {connection?.kmsKeyId ? (
         <Cell mono>
-          {/* Verdigris means encrypted, everywhere in the app. */}
-          <span className="text-verdigris" aria-hidden>
+          {/* Green means encrypted, everywhere in the app. */}
+          <span className="text-success" aria-hidden>
             ⚿
           </span>{' '}
           <span className="text-muted">uploads encrypted with {shortKey(connection.kmsKeyId)}</span>
@@ -83,7 +83,7 @@ function Cell({
   return (
     <div
       className={`flex h-full items-center border-r border-line-soft px-3 ${mono ? 'tabular' : ''} ${
-        accent ? 'text-copper' : 'text-muted'
+        accent ? 'text-accent-ink' : 'text-muted'
       }`}
     >
       {children}

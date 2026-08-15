@@ -24,9 +24,9 @@ export function BucketList() {
               onClick={() => void openBucket(bucket.name)}
               className="group flex w-full items-center gap-3 border-b border-line-soft px-4 py-2.5 text-left hover:bg-raised"
             >
-              {/* The bucket mark: a hollow square that fills copper on hover. */}
+              {/* The bucket mark: a hollow square that fills pink on hover. */}
               <span
-                className="h-2.5 w-2.5 shrink-0 border border-faint transition-colors group-hover:border-copper group-hover:bg-copper"
+                className="h-2.5 w-2.5 shrink-0 border border-faint transition-colors group-hover:border-accent group-hover:bg-accent"
                 aria-hidden
               />
               <span className="tabular flex-1 truncate text-[13px] text-text">{bucket.name}</span>

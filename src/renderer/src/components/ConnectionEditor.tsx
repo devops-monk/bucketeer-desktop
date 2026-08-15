@@ -161,7 +161,7 @@ export function ConnectionEditor({ connection, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-ink/70 pt-16 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-scrim pt-16 backdrop-blur-[2px]"
       onClick={onClose}
     >
       <div
@@ -345,20 +345,20 @@ export function ConnectionEditor({ connection, onClose }: Props) {
             </div>
 
             {!secretsAvailable && needsSecrets ? (
-              <p className="rounded-[3px] border border-rust/40 bg-rust/5 px-3 py-2 text-[11.5px] leading-relaxed text-text">
+              <p className="rounded-[3px] border border-danger/40 bg-danger/5 px-3 py-2 text-[11.5px] leading-relaxed text-text">
                 This system has no keychain available, so access keys cannot be saved. Use an
                 AWS profile or the default credential chain instead.
               </p>
             ) : null}
 
             {error ? (
-              <p className="rounded-[3px] border border-rust/40 bg-rust/5 px-3 py-2 text-[11.5px] leading-relaxed text-text">
+              <p className="rounded-[3px] border border-danger/40 bg-danger/5 px-3 py-2 text-[11.5px] leading-relaxed text-text">
                 {error}
               </p>
             ) : null}
 
             {tested ? (
-              <p className="rounded-[3px] border border-verdigris/40 bg-verdigris/5 px-3 py-2 text-[11.5px] leading-relaxed text-text">
+              <p className="rounded-[3px] border border-success/40 bg-success/5 px-3 py-2 text-[11.5px] leading-relaxed text-text">
                 {tested}
               </p>
             ) : null}

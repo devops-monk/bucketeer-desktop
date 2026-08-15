@@ -3,44 +3,59 @@
 /*
  * Bucketeer's design language: an instrument panel, not a document.
  *
- * Graphite surfaces separated by hairlines rather than shadows; monospace for every
- * value the machine owns (keys, byte counts, regions, timestamps) and proportional type
- * only for language. Copper is the single accent and marks what you can act on.
- * Verdigris is reserved — it means "encrypted" and nothing else, so a glance down the
- * encryption column is trustworthy.
+ * Light, near-white surfaces separated by hairlines rather than shadows; monospace for
+ * every value the machine owns (keys, byte counts, regions, timestamps) and proportional
+ * type only for language.
+ *
+ * The accent is Very's brand pink, #DE007B, taken from very.co.uk. It marks what you can
+ * act on and nothing else. Success is reserved — it means "encrypted" and nothing more,
+ * so a glance down the encryption column stays trustworthy.
+ *
+ * Pink is split into two tokens on purpose. The brand pink is a *fill*: white on it
+ * measures 4.78:1, which passes AA. As small text it does not — 4.31:1 on our light
+ * background, 3.96:1 on dark — so text and links use a tuned shade (6.50:1 light) or
+ * tint (6.19:1 dark). Both still read unmistakably as the brand.
  */
 
 :root {
-  --ink: #0e1316;
-  --panel: #141b20;
-  --raised: #1b242a;
-  --line: #26323a;
-  --line-soft: #1e282e;
-  --text: #e3ebef;
-  --muted: #8395a0;
-  --faint: #5b6b75;
-  --copper: #c97a45;
-  --copper-dim: #7a4a29;
-  --verdigris: #4e9e8c;
-  --rust: #c2564b;
-  color-scheme: dark;
+  --ink: #f2f3f5;
+  --panel: #ffffff;
+  --raised: #f7f7f8;
+  --line: #e2e4e8;
+  --line-soft: #edeef1;
+  --text: #16161a;
+  --muted: #5c6068;
+  --faint: #8a8f98;
+  --accent: #de007b;
+  --accent-ink: #b80066;
+  --accent-soft: #f9cce4;
+  --on-accent: #ffffff;
+  --success: #0f7a5a;
+  --danger: #b3261e;
+  /* The dialog scrim darkens in both themes — a light theme cannot dim with its own
+     background colour, only with shadow. */
+  --scrim: rgb(22 22 26 / 0.45);
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --ink: #eaeef0;
-    --panel: #f4f7f8;
-    --raised: #ffffff;
-    --line: #ccd6db;
-    --line-soft: #dde4e8;
-    --text: #141d23;
-    --muted: #5a6b76;
-    --faint: #8497a1;
-    --copper: #9c5623;
-    --copper-dim: #d9b394;
-    --verdigris: #2c7566;
-    --rust: #a63a30;
-    color-scheme: light;
+    --ink: #121013;
+    --panel: #1a171c;
+    --raised: #231f26;
+    --line: #322c35;
+    --line-soft: #241f27;
+    --text: #f2eef2;
+    --muted: #a79eaa;
+    --faint: #7a7280;
+    --accent: #de007b;
+    --accent-ink: #ff4da6;
+    --accent-soft: #6b1246;
+    --on-accent: #ffffff;
+    --success: #3dbe95;
+    --danger: #ff6b5e;
+    --scrim: rgb(0 0 0 / 0.65);
+    color-scheme: dark;
   }
 }
 
@@ -53,10 +68,13 @@
   --color-text: var(--text);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
-  --color-copper: var(--copper);
-  --color-copper-dim: var(--copper-dim);
-  --color-verdigris: var(--verdigris);
-  --color-rust: var(--rust);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-scrim: var(--scrim);
 
   --font-sans: ui-sans-serif, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto,
     system-ui, sans-serif;
@@ -102,7 +120,7 @@ body {
 }
 
 :where(button, a, input, select, [tabindex]):focus-visible {
-  outline: 2px solid var(--copper);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
   border-radius: 2px;
 }

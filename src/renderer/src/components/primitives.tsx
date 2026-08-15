@@ -10,9 +10,9 @@ export function Button({ variant = 'ghost', className = '', ...props }: ButtonPr
   const base =
     'inline-flex h-7 items-center gap-1.5 rounded-[3px] px-2.5 text-[12px] transition-colors disabled:opacity-40 disabled:pointer-events-none'
   const variants = {
-    primary: 'bg-copper text-ink font-medium hover:brightness-110',
+    primary: 'bg-accent text-on-accent font-medium hover:brightness-110',
     ghost: 'text-muted hover:bg-raised hover:text-text',
-    danger: 'text-rust hover:bg-rust/10'
+    danger: 'text-danger hover:bg-danger/10'
   }
   return <button className={`${base} ${variants[variant]} ${className}`} {...props} />
 }
@@ -36,7 +36,7 @@ export function Field({
 }
 
 const controlStyles =
-  'h-8 w-full rounded-[3px] border border-line bg-ink px-2.5 text-[12px] text-text placeholder:text-faint focus:border-copper focus:outline-none'
+  'h-8 w-full rounded-[3px] border border-line bg-ink px-2.5 text-[12px] text-text placeholder:text-faint focus:border-accent focus:outline-none'
 
 export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${controlStyles} ${className}`} spellCheck={false} {...props} />
@@ -50,7 +50,7 @@ export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSe
 export function Tag({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'accent' }) {
   const tones = {
     neutral: 'border-line text-muted',
-    accent: 'border-copper-dim text-copper'
+    accent: 'border-accent-soft text-accent-ink'
   }
   return (
     <span
@@ -86,8 +86,8 @@ export function EmptyState({
 /** Failures explain what happened and offer the way out, in the app's own voice. */
 export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="m-4 flex items-start gap-3 rounded-[3px] border border-rust/40 bg-rust/5 px-3 py-2.5">
-      <span className="mt-px text-rust">⚠</span>
+    <div className="m-4 flex items-start gap-3 rounded-[3px] border border-danger/40 bg-danger/5 px-3 py-2.5">
+      <span className="mt-px text-danger">⚠</span>
       <p className="flex-1 text-[12px] leading-relaxed text-text">{message}</p>
       {onRetry ? (
         <Button onClick={onRetry} variant="ghost">
@@ -102,7 +102,7 @@ export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: (
 export function LoadingBar() {
   return (
     <div className="h-px w-full overflow-hidden bg-line-soft">
-      <div className="h-full w-1/3 animate-[slide_1.1s_ease-in-out_infinite] bg-copper" />
+      <div className="h-full w-1/3 animate-[slide_1.1s_ease-in-out_infinite] bg-accent" />
       <style>{`@keyframes slide { 0% { transform: translateX(-100%) } 100% { transform: translateX(400%) } }`}</style>
     </div>
   )

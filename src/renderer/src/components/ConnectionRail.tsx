@@ -43,9 +43,9 @@ export function ConnectionRail({
                       active ? 'bg-raised' : 'hover:bg-raised/60'
                     }`}
                   >
-                    {/* A copper bar marks the open connection — the same accent used for every actionable thing. */}
+                    {/* A pink bar marks the open connection — the same accent used for every actionable thing. */}
                     <span
-                      className={`h-7 w-[2px] rounded-full ${active ? 'bg-copper' : 'bg-transparent'}`}
+                      className={`h-7 w-[2px] rounded-full ${active ? 'bg-accent' : 'bg-transparent'}`}
                       aria-hidden
                     />
                     <button

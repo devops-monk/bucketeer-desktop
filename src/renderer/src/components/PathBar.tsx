@@ -27,7 +27,7 @@ export function PathBar({ onRefresh }: { onRefresh: () => void }) {
         <span className="text-faint">s3://</span>
         <button
           onClick={() => void openBucket(location.bucket)}
-          className="text-copper hover:underline"
+          className="text-accent-ink hover:underline"
         >
           {location.bucket}
         </button>
@@ -36,7 +36,7 @@ export function PathBar({ onRefresh }: { onRefresh: () => void }) {
             <span className="text-faint">/</span>
             <button
               onClick={() => void navigateTo(crumb.prefix)}
-              className="text-text hover:text-copper hover:underline"
+              className="text-text hover:text-accent-ink hover:underline"
             >
               {crumb.name}
             </button>

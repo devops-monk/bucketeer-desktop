@@ -44,7 +44,14 @@ export function App() {
         className="flex h-9 shrink-0 items-center border-b border-line bg-panel px-4"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
-        <span className="pl-[68px] text-[12px] tracking-wide text-muted">Bucketeer</span>
+        {/* The wordmark is the one place the brand pink appears unprompted; everywhere
+            else it is reserved for things you can act on. */}
+        <span className="flex items-center gap-2 pl-[68px]">
+          <span className="h-2 w-2 rounded-full bg-accent" aria-hidden />
+          <span className="text-[12.5px] font-semibold tracking-wide text-accent-ink">
+            Bucketeer
+          </span>
+        </span>
       </header>
 
       <div className="flex min-h-0 flex-1">

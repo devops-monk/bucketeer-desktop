@@ -84,11 +84,11 @@ function PrefixRow({ prefix, onOpen }: { prefix: S3Prefix; onOpen: () => void })
     >
       <td className="px-3 py-1.5">
         <button onClick={onOpen} className="flex items-center gap-2.5 text-left">
-          {/* Prefixes carry a copper chevron; objects never do, so the tree is scannable. */}
-          <span className="w-6 shrink-0 text-center text-[11px] text-copper" aria-hidden>
+          {/* Prefixes carry a pink chevron; objects never do, so the tree is scannable. */}
+          <span className="w-6 shrink-0 text-center text-[11px] text-accent-ink" aria-hidden>
             ▸
           </span>
-          <span className="tabular truncate text-[12.5px] text-text group-hover:text-copper">
+          <span className="tabular truncate text-[12.5px] text-text group-hover:text-accent-ink">
             {prefix.name}
           </span>
         </button>
@@ -117,7 +117,7 @@ function ObjectRow({
       onClick={(event) => onSelect(event.metaKey || event.ctrlKey || event.shiftKey)}
       aria-selected={selected}
       className={`cursor-default border-b border-line-soft ${
-        selected ? 'bg-copper/12' : 'hover:bg-raised'
+        selected ? 'bg-accent/12' : 'hover:bg-raised'
       }`}
     >
       <td className="px-3 py-1.5">
@@ -137,7 +137,7 @@ function ObjectRow({
       </td>
       <td className="px-3 py-1.5 pr-4 text-right">
         {storageClass ? (
-          <span className="tabular text-[10px] tracking-wide text-copper uppercase">
+          <span className="tabular text-[10px] tracking-wide text-accent-ink uppercase">
             {storageClass}
           </span>
         ) : null}
