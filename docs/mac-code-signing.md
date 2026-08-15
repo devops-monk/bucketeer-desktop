@@ -210,7 +210,9 @@ If both pass, a double-click opens the app with no warning at all.
 ## If none of this happens
 
 The app keeps working. Users right-click → Open once per install, which the release notes
-already explain. The one improvement worth making without a membership is publishing a
-**Homebrew Cask**: `brew install --cask bucketeer` removes the quarantine attribute
-itself, so anyone installing that way never sees the warning. That needs no Apple
-relationship at all.
+already explain.
+
+Publishing a **Homebrew Cask** is still worth doing — it makes installing and upgrading
+one command each — but it does not avoid the warning: Homebrew quarantines what it
+downloads by default, and the `--no-quarantine` escape hatch warns that it weakens
+Gatekeeper. See [homebrew-cask.md](homebrew-cask.md).

@@ -143,8 +143,11 @@ consequences, both permanent until that changes:
   refuses an unsigned one. Windows and Linux auto-update are unaffected and are still
   worth building.
 
-An alternative, if the warning becomes a real obstacle: distribute macOS builds through
-Homebrew Cask, where `brew install --cask` removes the quarantine attribute itself.
+Homebrew does **not** avoid this, contrary to a common belief: its cask installer
+quarantines downloads by default, and `--no-quarantine` is an explicit opt-out that warns
+it weakens Gatekeeper. A cask is still worth publishing for one-line installs and
+upgrades — see `docs/homebrew-cask.md` — but it is a distribution convenience, not a way
+around notarization.
 
 If the membership does become available, `docs/mac-code-signing.md` is the full path from
 nothing to a build that opens on a double-click. The release workflow already passes the
