@@ -190,7 +190,11 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   selectAll() {
-    const objects = get().listing?.objects ?? []
-    set({ selection: new Set(objects.map((object: S3Object) => object.key)) })
+    const listing = get().listing
+    set({
+      selection: new Set((listing?.objects ?? []).map((object: S3Object) => object.key)),
+      // Folders are selectable too, so "select all" that skipped them would be a lie.
+      prefixSelection: new Set((listing?.prefixes ?? []).map((prefix) => prefix.prefix))
+    })
   }
 }))

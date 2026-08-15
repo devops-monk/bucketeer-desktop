@@ -2,6 +2,14 @@ import { useState } from 'react'
 import { api, messageFor } from '../lib/api'
 import { useSession } from '../store/session'
 import { ConfirmDialog, LinkDialog, PromptDialog } from './dialogs'
+import {
+  DownloadIcon,
+  LinkIcon,
+  NewFolderIcon,
+  RenameIcon,
+  TrashIcon,
+  UploadIcon
+} from './icons'
 import { Button, Input } from './primitives'
 
 /** How long share links last. Seven days is SigV4's hard ceiling. */
@@ -152,20 +160,28 @@ export function Toolbar() {
     <>
       <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-line bg-panel px-3">
         <Button variant="primary" onClick={() => void upload()}>
+          <UploadIcon />
           Upload
         </Button>
         <Button onClick={() => void download()} disabled={selectedCount === 0}>
+          <DownloadIcon />
           Download
         </Button>
         <span className="mx-1 h-4 w-px bg-line" aria-hidden />
-        <Button onClick={() => setDialog('folder')}>New folder</Button>
+        <Button onClick={() => setDialog('folder')}>
+          <NewFolderIcon />
+          New folder
+        </Button>
         <Button onClick={() => setDialog('rename')} disabled={!singleObject}>
+          <RenameIcon />
           Rename
         </Button>
         <Button onClick={() => void share()} disabled={!singleObject}>
+          <LinkIcon />
           Share link
         </Button>
         <Button variant="danger" onClick={() => setDialog('delete')} disabled={selectedCount === 0}>
+          <TrashIcon />
           Delete
         </Button>
 

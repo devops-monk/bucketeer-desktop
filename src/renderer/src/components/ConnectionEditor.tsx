@@ -53,6 +53,10 @@ export function ConnectionEditor({ connection, onClose }: Props) {
   const [externalId, setExternalId] = useState(connection?.credentials.externalId ?? '')
   const [baseProfile, setBaseProfile] = useState(connection?.credentials.baseProfileName ?? '')
 
+  // The id of the record this dialog owns. Starts as the connection being edited, and
+  // is filled in the moment a new connection is first saved — otherwise pressing Test
+  // and then Save would create the same connection twice.
+  const [savedId, setSavedId] = useState<string | null>(connection?.id ?? null)
   const [profiles, setProfiles] = useState<string[]>([])
   const [secretsAvailable, setSecretsAvailable] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -121,7 +125,7 @@ export function ConnectionEditor({ connection, onClose }: Props) {
     setTested(null)
     try {
       const saved = await api.connections.save({
-        id: connection?.id,
+        id: savedId ?? undefined,
         name: name.trim() || 'Untitled connection',
         region,
         endpoint: endpoint.trim() || undefined,
@@ -129,6 +133,7 @@ export function ConnectionEditor({ connection, onClose }: Props) {
         kmsKeyId: kmsKeyId.trim() || undefined,
         credentials: buildCredentials()
       })
+      setSavedId(saved.id)
       await loadConnections()
 
       if (thenTest) {
@@ -149,10 +154,10 @@ export function ConnectionEditor({ connection, onClose }: Props) {
   }
 
   async function remove() {
-    if (!connection) return
+    if (!savedId) return
     setBusy(true)
     try {
-      await api.connections.remove(connection.id)
+      await api.connections.remove(savedId)
       await loadConnections()
       onClose()
     } catch (failure) {
@@ -381,7 +386,7 @@ export function ConnectionEditor({ connection, onClose }: Props) {
         </div>
 
         <footer className="flex items-center gap-2 border-t border-line px-4 py-3">
-          {connection ? (
+          {savedId ? (
             <Button variant="danger" onClick={() => void remove()} disabled={busy}>
               Delete
             </Button>

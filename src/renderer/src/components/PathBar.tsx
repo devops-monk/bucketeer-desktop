@@ -1,5 +1,6 @@
 import { breadcrumbs } from '../lib/format'
 import { useSession } from '../store/session'
+import { RefreshIcon, UpIcon } from './icons'
 import { Button } from './primitives'
 
 /**
@@ -20,7 +21,7 @@ export function PathBar({ onRefresh }: { onRefresh: () => void }) {
   return (
     <div className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-panel px-3">
       <Button onClick={() => void goUp()} aria-label="Go up one level">
-        ↑
+        <UpIcon />
       </Button>
 
       <div className="tabular flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto whitespace-nowrap text-[12px]">
@@ -46,7 +47,7 @@ export function PathBar({ onRefresh }: { onRefresh: () => void }) {
       </div>
 
       <Button onClick={onRefresh} disabled={loading} aria-label="Refresh this listing">
-        ↻
+        <RefreshIcon className={loading ? 'animate-spin' : ''} />
       </Button>
     </div>
   )

@@ -1,5 +1,6 @@
 import type { ConnectionSummary } from '@shared/types'
 import { useSession } from '../store/session'
+import { PlusIcon } from './icons'
 import { Button, Tag } from './primitives'
 
 /**
@@ -23,7 +24,7 @@ export function ConnectionRail({
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
         <span className="eyebrow">Connections</span>
         <Button onClick={onAdd} aria-label="Add a connection">
-          +
+          <PlusIcon />
         </Button>
       </div>
 
