@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, Menu, nativeImage, Tray } from 'electron'
+import { percentOf, summarise } from '@shared/transfer-summary'
 import type { Transfer } from '@shared/types'
 import type { EventBroadcaster } from '../core/ports'
 
@@ -61,27 +62,27 @@ export class SystemIntegration implements EventBroadcaster {
    * The Dock and the taskbar both draw a bar from setProgressBar; -1 removes it. macOS
    * additionally gets a badge with the number still in flight, which is legible at a
    * glance in a way a thin bar is not.
+   *
+   * The fraction comes from the same batch arithmetic the window uses, so the Dock and
+   * the panel never show two different answers to the same question.
    */
   private reflectProgress(transfers: Transfer[]): void {
-    const active = transfers.filter(
-      (transfer) => transfer.status === 'queued' || transfer.status === 'running'
-    )
-    const failed = transfers.filter((transfer) => transfer.status === 'failed').length
-
-    const total = active.reduce((sum, transfer) => sum + transfer.size, 0)
-    const done = active.reduce((sum, transfer) => sum + transfer.transferred, 0)
+    const summary = summarise(transfers)
+    const percent = percentOf(summary)
     // An unknown total shows an indeterminate bar rather than a misleading zero.
-    const fraction = active.length === 0 ? -1 : total > 0 ? Math.min(1, done / total) : 2
+    const fraction = summary.active === 0 ? -1 : percent === null ? 2 : percent / 100
 
     for (const window of BrowserWindow.getAllWindows()) {
       if (!window.isDestroyed()) window.setProgressBar(fraction)
     }
 
     if (process.platform === 'darwin' && app.dock) {
-      app.dock.setBadge(active.length > 0 ? String(active.length) : failed > 0 ? '!' : '')
+      app.dock.setBadge(
+        summary.active > 0 ? String(summary.active) : summary.failed > 0 ? '!' : ''
+      )
     }
 
-    this.tray?.setToolTip(describe(active.length, failed))
+    this.tray?.setToolTip(describe(summary.active, summary.failed))
   }
 
   private setMenu(onShow: () => void, status: string): void {

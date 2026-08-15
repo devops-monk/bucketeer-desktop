@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import type { Transfer } from '@shared/types'
 import { api } from '../lib/api'
+import { isActive } from '@shared/transfer-summary'
+
+export { isActive, isUnfinished, percentOf, summarise } from '@shared/transfer-summary'
+export type { TransferSummary } from '@shared/transfer-summary'
 
 /**
  * Mirror of the transfer queue, which lives in the main process.
@@ -57,36 +61,3 @@ export const useTransfers = create<TransferState>((set, get) => ({
     await api.transfers.clearFinished()
   }
 }))
-
-export function isActive(transfer: Transfer): boolean {
-  return transfer.status === 'queued' || transfer.status === 'running'
-}
-
-/** Paused counts as unfinished: it is waiting on the user, not on the network. */
-export function isUnfinished(transfer: Transfer): boolean {
-  return isActive(transfer) || transfer.status === 'paused'
-}
-
-/** Aggregate progress across everything still moving, for the manifest strip. */
-export function summarise(transfers: Transfer[]): {
-  active: number
-  failed: number
-  transferred: number
-  total: number
-} {
-  let active = 0
-  let failed = 0
-  let transferred = 0
-  let total = 0
-
-  for (const transfer of transfers) {
-    if (isActive(transfer)) {
-      active += 1
-      transferred += transfer.transferred
-      total += transfer.size
-    }
-    if (transfer.status === 'failed') failed += 1
-  }
-
-  return { active, failed, transferred, total }
-}

@@ -1,7 +1,7 @@
 import type { Transfer } from '@shared/types'
 import { api } from '../lib/api'
 import { formatBytes } from '../lib/format'
-import { isActive, summarise, useTransfers } from '../store/transfers'
+import { isActive, percentOf, summarise, useTransfers } from '../store/transfers'
 import { DownloadIcon, KeyIcon, UploadIcon } from './icons'
 import { Button, Tooltip } from './primitives'
 
@@ -24,10 +24,10 @@ export function TransferPanel() {
 
   if (!open || transfers.length === 0) return null
 
-  const { active, failed, transferred, total } = summarise(transfers)
-  const done = transfers.filter((transfer) => transfer.status === 'done').length
+  const summary = summarise(transfers)
+  const { active, completed, failed, files, transferred, total } = summary
   const finished = transfers.filter((transfer) => !isActive(transfer)).length
-  const percent = total > 0 ? Math.min(100, Math.round((transferred / total) * 100)) : null
+  const percent = percentOf(summary)
 
   return (
     <section
@@ -44,7 +44,12 @@ export function TransferPanel() {
           {active > 0 ? (
             <>
               <span className="text-accent-ink">
-                {active} in flight{percent === null ? '' : ` · ${percent}%`}
+                {percent === null ? `${active} in flight` : `${percent}%`}
+              </span>
+              {/* Files completed out of the batch, which is what a folder download is
+                  actually judged by — one file's byte count says little about 200. */}
+              <span className="text-faint">
+                {completed} of {files} files
               </span>
               {total > 0 ? (
                 <span className="text-faint">
@@ -54,7 +59,7 @@ export function TransferPanel() {
             </>
           ) : (
             <span className="text-faint">
-              {done} complete{failed > 0 ? '' : ' · nothing in flight'}
+              {completed} complete{failed > 0 ? '' : ' · nothing in flight'}
             </span>
           )}
           {failed > 0 ? <span className="text-danger">{failed} failed</span> : null}

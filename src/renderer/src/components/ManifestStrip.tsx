@@ -1,6 +1,6 @@
 import { formatBytes, sumBytes } from '../lib/format'
 import { useSession } from '../store/session'
-import { summarise, useTransfers } from '../store/transfers'
+import { percentOf, summarise, useTransfers } from '../store/transfers'
 import { KeyIcon } from './icons'
 import { Tooltip } from './primitives'
 
@@ -71,10 +71,8 @@ export function ManifestStrip() {
           onClick={() => setPanelOpen(true)}
           className="tabular flex h-full items-center gap-2 border-l border-line-soft px-3 text-accent-ink hover:bg-raised"
         >
-          {transfers.active} in flight
-          {transfers.total > 0
-            ? ` · ${Math.round((transfers.transferred / transfers.total) * 100)}%`
-            : ''}
+          {transfers.completed} of {transfers.files} files
+          {percentOf(transfers) === null ? '' : ` · ${percentOf(transfers)}%`}
         </button>
       ) : null}
 
