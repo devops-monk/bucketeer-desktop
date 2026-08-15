@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { app } from 'electron'
 import { BrowsingService } from './app/browsing-service'
+import { BucketService } from './app/bucket-service'
 import { ConnectionService } from './app/connection-service'
 import { ObjectService } from './app/object-service'
 import { TransferService } from './app/transfer-service'
@@ -65,6 +66,7 @@ export function createContainer(): Container {
   )
   const browsing = new BrowsingService(repository, storage)
   const objects = new ObjectService(repository, storage)
+  const buckets = new BucketService(repository, storage)
   const transfers = new TransferService(
     repository,
     storage,
@@ -85,7 +87,7 @@ export function createContainer(): Container {
       const modules = [
         new ConnectionModule(connections),
         new BrowsingModule(browsing),
-        new ObjectModule(objects),
+        new ObjectModule(objects, buckets),
         new TransferModule(transfers),
         new AppModule(settings)
       ]

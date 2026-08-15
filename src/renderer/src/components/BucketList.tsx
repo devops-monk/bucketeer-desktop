@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react'
+import { api, messageFor } from '../lib/api'
 import { formatFullTimestamp } from '../lib/format'
 import { useSession } from '../store/session'
 import { BucketIcon } from './icons'
-import { EmptyState, SearchInput, Tooltip } from './primitives'
+import { ConfirmDialog, PromptDialog } from './dialogs'
+import { TrashIcon } from './icons'
+import { Button, EmptyState, ErrorNotice, SearchInput, Tooltip } from './primitives'
 
 /**
  * Buckets are the top level of a connection. Shown as a list rather than a grid of
@@ -16,8 +19,47 @@ import { EmptyState, SearchInput, Tooltip } from './primitives'
 export function BucketList() {
   const buckets = useSession((state) => state.buckets)
   const openBucket = useSession((state) => state.openBucket)
+  const connectionId = useSession((state) => state.activeConnectionId)
+  const openConnection = useSession((state) => state.openConnection)
 
   const [filter, setFilter] = useState('')
+  const [dialog, setDialog] = useState<'create' | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function createBucket(name: string) {
+    if (!connectionId) return
+    setBusy(true)
+    setError(null)
+    try {
+      await api.buckets.create({ connectionId, name })
+      setDialog(null)
+      await openConnection(connectionId)
+    } catch (failure) {
+      setError(messageFor(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function deleteBucket(name: string) {
+    if (!connectionId) return
+    setBusy(true)
+    setError(null)
+    try {
+      await api.buckets.remove({ connectionId, name })
+      setDeleting(null)
+      await openConnection(connectionId)
+    } catch (failure) {
+      // S3 refuses while anything is inside, and saying so plainly is more useful than
+      // the raw BucketNotEmpty code.
+      setError(messageFor(failure))
+      setDeleting(null)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const visible = useMemo(() => {
     const needle = filter.trim().toLowerCase()
@@ -40,6 +82,11 @@ export function BucketList() {
           {buckets.length === 1 ? 'bucket' : 'buckets'}
         </span>
         <div className="flex-1" />
+        <Tooltip label="Create a bucket in this connection's region" side="bottom">
+          <Button variant="secondary" onClick={() => setDialog('create')}>
+            New bucket
+          </Button>
+        </Tooltip>
         <SearchInput
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
@@ -55,6 +102,8 @@ export function BucketList() {
         />
       </div>
 
+      {error ? <ErrorNotice message={error} /> : null}
+
       {visible.length === 0 ? (
         <EmptyState
           title="No buckets match"
@@ -63,10 +112,10 @@ export function BucketList() {
       ) : (
         <ul className="rise flex-1 overflow-y-auto">
           {visible.map((bucket) => (
-            <li key={bucket.name}>
+            <li key={bucket.name} className="group relative">
               <button
                 onClick={() => void openBucket(bucket.name)}
-                className="group flex w-full items-center gap-3 border-b border-line-soft px-4 py-2.5 text-left transition-colors duration-100 hover:bg-hover"
+                className="flex w-full items-center gap-3 border-b border-line-soft px-4 py-2.5 pr-12 text-left transition-colors duration-100 hover:bg-hover"
               >
                 {/* The app's own pail mark, so a bucket in the list reads as the same
                     thing as the icon in the dock. The previous hollow square read as a
@@ -81,10 +130,42 @@ export function BucketList() {
                   {bucket.createdAt ? formatFullTimestamp(bucket.createdAt) : ''}
                 </span>
               </button>
+
+              <Tooltip label="Delete this bucket. It must be empty first.">
+                <button
+                  onClick={() => setDeleting(bucket.name)}
+                  className="absolute top-1/2 right-4 -translate-y-1/2 rounded p-1 text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger focus-visible:opacity-100"
+                  aria-label={`Delete ${bucket.name}`}
+                >
+                  <TrashIcon className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
             </li>
           ))}
         </ul>
       )}
+      {dialog === 'create' ? (
+        <PromptDialog
+          title="New bucket"
+          label="Name"
+          confirmLabel="Create"
+          busy={busy}
+          error={error}
+          onConfirm={(value) => void createBucket(value)}
+          onCancel={() => setDialog(null)}
+        />
+      ) : null}
+
+      {deleting ? (
+        <ConfirmDialog
+          title={`Delete bucket ${deleting}?`}
+          detail="S3 only deletes empty buckets, so this fails if anything is still inside. Deleting a bucket also frees its name for anyone else to claim."
+          confirmLabel="Delete bucket"
+          busy={busy}
+          onConfirm={() => void deleteBucket(deleting)}
+          onCancel={() => setDeleting(null)}
+        />
+      ) : null}
     </div>
   )
 }

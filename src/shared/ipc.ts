@@ -1,6 +1,11 @@
 import type {
   Bucket,
   BucketEncryption,
+  CopyResult,
+  CreateBucketRequest,
+  DeleteBucketRequest,
+  SetStorageClassRequest,
+  TransferObjectsRequest,
   Connection,
   ConnectionSummary,
   CreateFolderRequest,
@@ -41,6 +46,10 @@ export const Channels = {
   objectsCreateFolder: 'objects:create-folder',
   objectsPresign: 'objects:presign',
   bucketsEncryption: 'buckets:encryption',
+  bucketsCreate: 'buckets:create',
+  bucketsDelete: 'buckets:delete',
+  objectsCopy: 'objects:copy',
+  objectsStorageClass: 'objects:storage-class',
   transfersUpload: 'transfers:upload',
   transfersDownload: 'transfers:download',
   transfersList: 'transfers:list',
@@ -89,6 +98,9 @@ export interface BucketeerApi {
     list(connectionId: string): Promise<Result<Bucket[]>>
     /** The bucket's default encryption, or null when unset or not readable. */
     encryption(connectionId: string, bucket: string): Promise<Result<BucketEncryption | null>>
+    create(request: CreateBucketRequest): Promise<Result<void>>
+    /** Fails while the bucket still holds anything, which S3 enforces. */
+    remove(request: DeleteBucketRequest): Promise<Result<void>>
   }
   objects: {
     list(request: ListObjectsRequest): Promise<Result<ListingPage>>
@@ -99,6 +111,9 @@ export interface BucketeerApi {
     createFolder(request: CreateFolderRequest): Promise<Result<void>>
     /** Time-limited URL anyone can use, no credentials required. */
     presign(request: PresignRequest): Promise<Result<string>>
+    /** Server-side copy or move, within a bucket or across buckets. */
+    copy(request: TransferObjectsRequest): Promise<Result<CopyResult>>
+    setStorageClass(request: SetStorageClassRequest): Promise<Result<CopyResult>>
   }
   transfers: {
     upload(request: UploadRequest): Promise<Result<number>>

@@ -149,3 +149,31 @@ export function KeyIcon({ className }: IconProps) {
     </Svg>
   )
 }
+
+export function CopyIcon({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="5.75" y="5.75" width="8.5" height="8.5" rx="1.2" />
+      <path d="M10.25 3.75v-1a1 1 0 0 0-1-1h-6.5a1 1 0 0 0-1 1v6.5a1 1 0 0 0 1 1h1" />
+    </Svg>
+  )
+}
+
+export function MoveIcon({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M2.75 4.5v7.5a1 1 0 0 0 1 1h8.5a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1H8.4a1 1 0 0 1-.8-.4l-.6-.8a1 1 0 0 0-.8-.4H3.75a1 1 0 0 0-1 1z" />
+      <path d="M6.75 9.25h4M9.25 7.5l1.75 1.75-1.75 1.75" />
+    </Svg>
+  )
+}
+
+export function ArchiveIcon({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="2.25" y="3.25" width="11.5" height="3" rx="0.8" />
+      <path d="M3.25 6.25v6.5a1 1 0 0 0 1 1h7.5a1 1 0 0 0 1-1v-6.5" />
+      <path d="M6.5 9h3" />
+    </Svg>
+  )
+}

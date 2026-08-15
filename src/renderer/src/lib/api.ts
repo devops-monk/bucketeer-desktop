@@ -44,7 +44,11 @@ export const api = {
   buckets: {
     list: (connectionId: string) => unwrap(bridge.buckets.list(connectionId)),
     encryption: (connectionId: string, bucket: string) =>
-      unwrap(bridge.buckets.encryption(connectionId, bucket))
+      unwrap(bridge.buckets.encryption(connectionId, bucket)),
+    create: (...args: Parameters<typeof bridge.buckets.create>) =>
+      unwrap(bridge.buckets.create(...args)),
+    remove: (...args: Parameters<typeof bridge.buckets.remove>) =>
+      unwrap(bridge.buckets.remove(...args))
   },
   objects: {
     list: (...args: Parameters<typeof bridge.objects.list>) => unwrap(bridge.objects.list(...args)),
@@ -56,7 +60,10 @@ export const api = {
     createFolder: (...args: Parameters<typeof bridge.objects.createFolder>) =>
       unwrap(bridge.objects.createFolder(...args)),
     presign: (...args: Parameters<typeof bridge.objects.presign>) =>
-      unwrap(bridge.objects.presign(...args))
+      unwrap(bridge.objects.presign(...args)),
+    copy: (...args: Parameters<typeof bridge.objects.copy>) => unwrap(bridge.objects.copy(...args)),
+    setStorageClass: (...args: Parameters<typeof bridge.objects.setStorageClass>) =>
+      unwrap(bridge.objects.setStorageClass(...args))
   },
   transfers: {
     upload: (...args: Parameters<typeof bridge.transfers.upload>) =>

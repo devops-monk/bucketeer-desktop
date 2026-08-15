@@ -5,6 +5,8 @@ import type { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import {
   CopyObjectCommand,
+  CreateBucketCommand,
+  DeleteBucketCommand,
   GetBucketEncryptionCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
@@ -230,6 +232,7 @@ export class S3ObjectStorage implements ObjectStorage {
         Key: key,
         Body: body,
         ContentType: options.contentType,
+        ...(options.storageClass ? { StorageClass: options.storageClass as never } : {}),
         // Verified by S3 on arrival: a corrupted upload fails rather than lands.
         ChecksumAlgorithm: CHECKSUM_ALGORITHM,
         // Only set encryption headers when a key was given; sending them empty makes
@@ -321,22 +324,49 @@ export class S3ObjectStorage implements ObjectStorage {
 
   async copyObject(
     connection: Connection,
-    bucket: string,
-    sourceKey: string,
-    targetKey: string
+    source: { bucket: string; key: string },
+    target: { bucket: string; key: string },
+    options: { storageClass?: string; kmsKeyId?: string } = {}
   ): Promise<void> {
-    const client = await this.factory.forBucket(connection, bucket)
+    // The destination bucket decides which endpoint the request goes to.
+    const client = await this.factory.forBucket(connection, target.bucket)
+    const kmsKeyId = options.kmsKeyId ?? connection.kmsKeyId
+
     await client.send(
       new CopyObjectCommand({
-        Bucket: bucket,
+        Bucket: target.bucket,
         // CopySource is a URL path, so a key containing spaces or "+" must be encoded.
-        CopySource: `${bucket}/${encodeURIComponent(sourceKey).replace(/%2F/g, '/')}`,
-        Key: targetKey,
-        ...(connection.kmsKeyId
-          ? { ServerSideEncryption: 'aws:kms' as const, SSEKMSKeyId: connection.kmsKeyId }
+        CopySource: `${source.bucket}/${encodeURIComponent(source.key).replace(/%2F/g, '/')}`,
+        Key: target.key,
+        ...(options.storageClass ? { StorageClass: options.storageClass as never } : {}),
+        // Changing the class or the key of an object means rewriting it, so the
+        // destination's encryption has to be stated again rather than inherited.
+        ...(kmsKeyId
+          ? { ServerSideEncryption: 'aws:kms' as const, SSEKMSKeyId: kmsKeyId }
           : {})
       })
     )
+  }
+
+  async createBucket(connection: Connection, name: string, region?: string): Promise<void> {
+    const target = region ?? connection.region
+    const client = this.factory.forConnection(connection, target)
+
+    await client.send(
+      new CreateBucketCommand({
+        Bucket: name,
+        // us-east-1 is the one region that must not be named, or S3 rejects the request.
+        ...(target === 'us-east-1'
+          ? {}
+          : { CreateBucketConfiguration: { LocationConstraint: target as never } })
+      })
+    )
+  }
+
+  async deleteBucket(connection: Connection, name: string): Promise<void> {
+    const client = await this.factory.forBucket(connection, name)
+    await client.send(new DeleteBucketCommand({ Bucket: name }))
+    this.factory.forget(connection.id)
   }
 
   async createFolder(connection: Connection, bucket: string, key: string): Promise<void> {

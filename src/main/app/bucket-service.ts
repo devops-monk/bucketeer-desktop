@@ -1,0 +1,137 @@
+import type {
+  CopyResult,
+  CreateBucketRequest,
+  DeleteBucketRequest,
+  SetStorageClassRequest,
+  TransferObjectsRequest
+} from '@shared/types'
+import { BucketeerError } from '../core/errors'
+import type { ConnectionRepository, ObjectStorage } from '../core/ports'
+
+/** S3 bucket names are DNS labels, and the rules are strict enough to check up front. */
+const BUCKET_NAME = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/
+
+/**
+ * Operations on buckets themselves, and on objects moving between them.
+ *
+ * Separate from ObjectService because the unit of work is different: these act on whole
+ * buckets or move things across them, where ObjectService works inside one listing.
+ */
+export class BucketService {
+  constructor(
+    private readonly repository: ConnectionRepository,
+    private readonly storage: ObjectStorage
+  ) {}
+
+  async create(request: CreateBucketRequest): Promise<void> {
+    const name = request.name.trim().toLowerCase()
+
+    // Checked here rather than left to S3, whose error for this is famously unhelpful.
+    if (!BUCKET_NAME.test(name)) {
+      throw new BucketeerError(
+        'Bucket names must be 3 to 63 characters, lowercase, and may contain only letters, numbers, dots and hyphens.',
+        'InvalidBucketName'
+      )
+    }
+    if (name.includes('..') || /^\d+\.\d+\.\d+\.\d+$/.test(name)) {
+      throw new BucketeerError(
+        'Bucket names cannot contain two adjacent dots or look like an IP address.',
+        'InvalidBucketName'
+      )
+    }
+
+    const connection = await this.repository.get(request.connectionId)
+    await this.storage.createBucket(connection, name, request.region)
+  }
+
+  /**
+   * Deletes a bucket. S3 refuses while any object remains, and that refusal is worth
+   * passing through as-is: emptying a bucket is a much larger decision than deleting an
+   * empty one, and should be made deliberately rather than as a side effect.
+   */
+  async remove(request: DeleteBucketRequest): Promise<void> {
+    const connection = await this.repository.get(request.connectionId)
+    await this.storage.deleteBucket(connection, request.name)
+  }
+
+  /**
+   * Copies or moves objects and whole folders, within a bucket or across buckets.
+   *
+   * Server-side throughout: the bytes never travel to this machine, which is what makes
+   * moving a large folder practical. A move deletes each source only after its copy
+   * succeeded, so an interruption leaves duplicates rather than losing data.
+   */
+  async copy(request: TransferObjectsRequest): Promise<CopyResult> {
+    const connection = await this.repository.get(request.connectionId)
+
+    const items: Array<{ key: string; target: string }> = request.keys.map((key) => ({
+      key,
+      target: `${request.targetPrefix}${key.split('/').pop() ?? key}`
+    }))
+
+    for (const prefix of request.prefixes) {
+      const objects = await this.storage.listAllKeys(connection, request.sourceBucket, prefix)
+      // Keep the folder itself as the root of what lands, rather than scattering its
+      // contents into the destination.
+      const parent = prefix.replace(/\/$/, '').split('/').slice(0, -1).join('/')
+      const base = parent ? `${parent}/` : ''
+
+      for (const object of objects) {
+        items.push({ key: object.key, target: `${request.targetPrefix}${object.key.slice(base.length)}` })
+      }
+    }
+
+    const sameBucket = request.sourceBucket === request.targetBucket
+    const failed: CopyResult['failed'] = []
+    const copied: string[] = []
+
+    for (const item of items) {
+      if (sameBucket && item.key === item.target) continue
+      try {
+        await this.storage.copyObject(
+          connection,
+          { bucket: request.sourceBucket, key: item.key },
+          { bucket: request.targetBucket, key: item.target }
+        )
+        copied.push(item.key)
+      } catch (error) {
+        failed.push({ key: item.key, reason: error instanceof Error ? error.message : String(error) })
+      }
+    }
+
+    if (request.move && copied.length > 0) {
+      const refused = await this.storage.deleteObjects(connection, request.sourceBucket, copied)
+      failed.push(...refused)
+    }
+
+    return { copied: copied.length, failed }
+  }
+
+  /**
+   * Changes the storage class of existing objects.
+   *
+   * S3 has no "set class" call: the object is copied onto itself with the new class,
+   * which is why this is here rather than being a field somewhere.
+   */
+  async setStorageClass(request: SetStorageClassRequest): Promise<CopyResult> {
+    const connection = await this.repository.get(request.connectionId)
+    const failed: CopyResult['failed'] = []
+    let copied = 0
+
+    for (const key of request.keys) {
+      try {
+        await this.storage.copyObject(
+          connection,
+          { bucket: request.bucket, key },
+          { bucket: request.bucket, key },
+          { storageClass: request.storageClass }
+        )
+        copied += 1
+      } catch (error) {
+        failed.push({ key, reason: error instanceof Error ? error.message : String(error) })
+      }
+    }
+
+    return { copied, failed }
+  }
+}

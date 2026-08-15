@@ -3,11 +3,15 @@ import { api, messageFor } from '../lib/api'
 import { describeEncryption, readBucketEncryption, resolveUploadEncryption } from '../lib/uploads'
 import { useSession } from '../store/session'
 import type { BucketEncryption, UploadEncryption } from '@shared/types'
-import { ConfirmDialog, LinkDialog, PromptDialog } from './dialogs'
+import { ConfirmDialog, LinkDialog, PromptDialog, StorageClassDialog } from './dialogs'
+import { DestinationDialog } from './DestinationDialog'
 import { UploadDialog } from './UploadDialog'
 import {
+  ArchiveIcon,
+  CopyIcon,
   DownloadIcon,
   KeyIcon,
+  MoveIcon,
   LinkIcon,
   NewFolderIcon,
   RenameIcon,
@@ -38,7 +42,9 @@ export function Toolbar() {
   const setFilter = useSession((state) => state.setFilter)
   const refresh = useSession((state) => state.refresh)
 
-  const [dialog, setDialog] = useState<'folder' | 'rename' | 'delete' | null>(null)
+  const [dialog, setDialog] = useState<
+    'folder' | 'rename' | 'delete' | 'copy' | 'move' | 'class' | null
+  >(null)
   const [link, setLink] = useState<string | null>(null)
   const [chooserOpen, setChooserOpen] = useState(false)
   const [bucketEncryption, setBucketEncryption] = useState<BucketEncryption | null>(null)
@@ -166,6 +172,56 @@ export function Toolbar() {
     }
   }
 
+  /** Server-side copy or move, so the bytes never travel through this machine. */
+  async function copyTo(destination: { bucket: string; prefix: string }, move: boolean) {
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await api.objects.copy({
+        connectionId: connectionId as string,
+        sourceBucket: location!.bucket,
+        keys: selectedKeys,
+        prefixes: selectedPrefixes,
+        targetBucket: destination.bucket,
+        targetPrefix: destination.prefix,
+        move
+      })
+      setDialog(null)
+      if (move) await refresh()
+      if (result.failed.length > 0) {
+        setError(
+          `${move ? 'Moved' : 'Copied'} ${result.copied}. ${result.failed.length} failed: ${result.failed[0].reason}`
+        )
+      }
+    } catch (failure) {
+      setError(messageFor(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function changeStorageClass(storageClass: string) {
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await api.objects.setStorageClass({
+        connectionId: connectionId as string,
+        bucket: location!.bucket,
+        keys: selectedKeys,
+        storageClass
+      })
+      setDialog(null)
+      await refresh()
+      if (result.failed.length > 0) {
+        setError(`Changed ${result.copied}. ${result.failed.length} failed: ${result.failed[0].reason}`)
+      }
+    } catch (failure) {
+      setError(messageFor(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function share() {
     setError(null)
     try {
@@ -237,6 +293,45 @@ export function Toolbar() {
           <Button onClick={() => void share()} disabled={!singleObject}>
             <LinkIcon />
             Share link
+          </Button>
+        </Tooltip>
+        <Tooltip
+          label={
+            selectedCount === 0
+              ? 'Select something first'
+              : 'Copy the selection into another bucket or folder, server-side'
+          }
+          side="bottom"
+        >
+          <Button onClick={() => setDialog('copy')} disabled={selectedCount === 0}>
+            <CopyIcon />
+            Copy to
+          </Button>
+        </Tooltip>
+        <Tooltip
+          label={
+            selectedCount === 0
+              ? 'Select something first'
+              : 'Move the selection, deleting the originals once copied'
+          }
+          side="bottom"
+        >
+          <Button onClick={() => setDialog('move')} disabled={selectedCount === 0}>
+            <MoveIcon />
+            Move to
+          </Button>
+        </Tooltip>
+        <Tooltip
+          label={
+            selectedKeys.length === 0
+              ? 'Select objects first'
+              : 'Change the storage class of the selected objects'
+          }
+          side="bottom"
+        >
+          <Button onClick={() => setDialog('class')} disabled={selectedKeys.length === 0}>
+            <ArchiveIcon />
+            Storage class
           </Button>
         </Tooltip>
         <Tooltip
@@ -321,6 +416,27 @@ export function Toolbar() {
 
       {link ? (
         <LinkDialog url={link} expiresLabel="in 24 hours" onClose={() => setLink(null)} />
+      ) : null}
+
+      {dialog === 'copy' || dialog === 'move' ? (
+        <DestinationDialog
+          title={dialog === 'copy' ? 'Copy to' : 'Move to'}
+          confirmLabel={dialog === 'copy' ? 'Copy here' : 'Move here'}
+          busy={busy}
+          error={error}
+          onConfirm={(destination) => void copyTo(destination, dialog === 'move')}
+          onCancel={() => setDialog(null)}
+        />
+      ) : null}
+
+      {dialog === 'class' ? (
+        <StorageClassDialog
+          count={selectedKeys.length}
+          busy={busy}
+          error={error}
+          onConfirm={(value) => void changeStorageClass(value)}
+          onCancel={() => setDialog(null)}
+        />
       ) : null}
 
       {chooserOpen ? (

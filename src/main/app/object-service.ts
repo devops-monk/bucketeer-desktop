@@ -52,7 +52,11 @@ export class ObjectService {
     if (request.targetKey === request.sourceKey) return
 
     const connection = await this.repository.get(request.connectionId)
-    await this.storage.copyObject(connection, request.bucket, request.sourceKey, request.targetKey)
+    await this.storage.copyObject(
+      connection,
+      { bucket: request.bucket, key: request.sourceKey },
+      { bucket: request.bucket, key: request.targetKey }
+    )
 
     const failed = await this.storage.deleteObjects(connection, request.bucket, [request.sourceKey])
     if (failed.length > 0) {

@@ -2,7 +2,11 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { Channels, type BucketeerApi } from '@shared/ipc'
 import type {
   Connection,
+  CreateBucketRequest,
   CreateFolderRequest,
+  DeleteBucketRequest,
+  SetStorageClassRequest,
+  TransferObjectsRequest,
   DeleteRequest,
   DownloadRequest,
   ListObjectsRequest,
@@ -41,7 +45,9 @@ const api: BucketeerApi = {
   buckets: {
     list: (connectionId: string) => ipcRenderer.invoke(Channels.bucketsList, connectionId),
     encryption: (connectionId: string, bucket: string) =>
-      ipcRenderer.invoke(Channels.bucketsEncryption, connectionId, bucket)
+      ipcRenderer.invoke(Channels.bucketsEncryption, connectionId, bucket),
+    create: (request: CreateBucketRequest) => ipcRenderer.invoke(Channels.bucketsCreate, request),
+    remove: (request: DeleteBucketRequest) => ipcRenderer.invoke(Channels.bucketsDelete, request)
   },
   objects: {
     list: (request: ListObjectsRequest) => ipcRenderer.invoke(Channels.objectsList, request),
@@ -51,7 +57,10 @@ const api: BucketeerApi = {
     rename: (request: RenameRequest) => ipcRenderer.invoke(Channels.objectsRename, request),
     createFolder: (request: CreateFolderRequest) =>
       ipcRenderer.invoke(Channels.objectsCreateFolder, request),
-    presign: (request: PresignRequest) => ipcRenderer.invoke(Channels.objectsPresign, request)
+    presign: (request: PresignRequest) => ipcRenderer.invoke(Channels.objectsPresign, request),
+    copy: (request: TransferObjectsRequest) => ipcRenderer.invoke(Channels.objectsCopy, request),
+    setStorageClass: (request: SetStorageClassRequest) =>
+      ipcRenderer.invoke(Channels.objectsStorageClass, request)
   },
   transfers: {
     upload: (request: UploadRequest) => ipcRenderer.invoke(Channels.transfersUpload, request),

@@ -194,6 +194,8 @@ export interface UploadRequest {
   paths: string[]
   /** Defaults to auto when omitted. */
   encryption?: UploadEncryption
+  /** S3 storage class for this batch. Omitted means the bucket's default. */
+  storageClass?: string
 }
 
 export interface DownloadRequest {
@@ -218,6 +220,42 @@ export interface RenameRequest {
   bucket: string
   sourceKey: string
   targetKey: string
+}
+
+/** Copy or move objects and folders, possibly into another bucket. */
+export interface TransferObjectsRequest {
+  connectionId: string
+  sourceBucket: string
+  keys: string[]
+  prefixes: string[]
+  targetBucket: string
+  targetPrefix: string
+  /** A move deletes the source once the copy succeeds. */
+  move: boolean
+}
+
+export interface SetStorageClassRequest {
+  connectionId: string
+  bucket: string
+  keys: string[]
+  storageClass: string
+}
+
+export interface CreateBucketRequest {
+  connectionId: string
+  name: string
+  region?: string
+}
+
+export interface DeleteBucketRequest {
+  connectionId: string
+  name: string
+}
+
+/** What a copy or move actually did. */
+export interface CopyResult {
+  copied: number
+  failed: Array<{ key: string; reason: string }>
 }
 
 export interface CreateFolderRequest {

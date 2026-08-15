@@ -163,3 +163,99 @@ export function LinkDialog({
     </Modal>
   )
 }
+
+/** The storage classes worth offering, with what each one costs you. */
+const STORAGE_CLASSES = [
+  { value: 'STANDARD', label: 'Standard', detail: 'Default. Immediate access, highest storage cost.' },
+  {
+    value: 'STANDARD_IA',
+    label: 'Standard-Infrequent Access',
+    detail: 'Cheaper to store, charged per retrieval. Minimum 30 days.'
+  },
+  {
+    value: 'ONEZONE_IA',
+    label: 'One Zone-Infrequent Access',
+    detail: 'Cheaper again, but held in a single availability zone.'
+  },
+  {
+    value: 'INTELLIGENT_TIERING',
+    label: 'Intelligent-Tiering',
+    detail: 'Moves objects between tiers automatically based on use.'
+  },
+  {
+    value: 'GLACIER_IR',
+    label: 'Glacier Instant Retrieval',
+    detail: 'Archive pricing with immediate access. Minimum 90 days.'
+  },
+  {
+    value: 'GLACIER',
+    label: 'Glacier Flexible Retrieval',
+    detail: 'Must be restored before it can be read, in minutes to hours.'
+  },
+  {
+    value: 'DEEP_ARCHIVE',
+    label: 'Glacier Deep Archive',
+    detail: 'Cheapest storage. Restores take up to 12 hours.'
+  }
+]
+
+/**
+ * Changes the storage class of the selected objects.
+ *
+ * Each option states its trade-off, because the classes differ in retrieval cost and
+ * minimum duration rather than in anything visible — and moving to an archive class is
+ * not something to discover the price of afterwards.
+ */
+export function StorageClassDialog({
+  count,
+  busy,
+  error,
+  onConfirm,
+  onCancel
+}: {
+  count: number
+  busy?: boolean
+  error?: string | null
+  onConfirm: (storageClass: string) => void
+  onCancel: () => void
+}) {
+  const [choice, setChoice] = useState('STANDARD_IA')
+
+  return (
+    <Modal label="Storage class" onClose={onCancel}>
+      <p className="text-[13px] text-text">
+        Change storage class for {count} {count === 1 ? 'object' : 'objects'}
+      </p>
+      <p className="mt-2 text-[11.5px] leading-relaxed text-muted">
+        S3 has no way to change a class in place, so each object is rewritten. Its contents and
+        key stay the same; its last-modified date does not.
+      </p>
+
+      <div className="mt-3 max-h-64 overflow-y-auto rounded-md border border-line">
+        {STORAGE_CLASSES.map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setChoice(option.value)}
+            className={`flex w-full flex-col items-start gap-0.5 border-b border-line-soft px-3 py-2 text-left last:border-b-0 ${
+              choice === option.value ? 'bg-accent-soft/50' : 'hover:bg-hover'
+            }`}
+          >
+            <span className="text-[12px] text-text">{option.label}</span>
+            <span className="text-[11px] leading-snug text-muted">{option.detail}</span>
+          </button>
+        ))}
+      </div>
+
+      {error ? <p className="mt-2 text-[11.5px] text-danger">{error}</p> : null}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <Button onClick={onCancel} disabled={busy}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={() => onConfirm(choice)} disabled={busy}>
+          {busy ? 'Working…' : 'Change class'}
+        </Button>
+      </div>
+    </Modal>
+  )
+}

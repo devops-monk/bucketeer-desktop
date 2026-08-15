@@ -61,6 +61,8 @@ export type ProgressReporter = (transferred: number, total?: number) => void
 export interface UploadOptions {
   kmsKeyId?: string
   contentType?: string
+  /** S3 storage class. Omitted means STANDARD. */
+  storageClass?: string
   onProgress?: ProgressReporter
   signal?: AbortSignal
 }
@@ -108,8 +110,20 @@ export interface ObjectStorage {
     bucket: string,
     keys: string[]
   ): Promise<Array<{ key: string; reason: string }>>
-  /** Server-side copy. S3 has no move, so rename is copy followed by delete. */
-  copyObject(connection: Connection, bucket: string, sourceKey: string, targetKey: string): Promise<void>
+  /**
+   * Server-side copy. S3 has no move, so both rename and move are copy then delete.
+   * Crossing buckets is the same call, which is why the source names its own bucket.
+   */
+  copyObject(
+    connection: Connection,
+    source: { bucket: string; key: string },
+    target: { bucket: string; key: string },
+    options?: { storageClass?: string; kmsKeyId?: string }
+  ): Promise<void>
+  /** Creates a bucket, in the connection's region unless told otherwise. */
+  createBucket(connection: Connection, name: string, region?: string): Promise<void>
+  /** Deletes an empty bucket. S3 refuses while anything remains inside it. */
+  deleteBucket(connection: Connection, name: string): Promise<void>
   /** Writes the zero-byte marker object that makes an empty folder visible. */
   createFolder(connection: Connection, bucket: string, key: string): Promise<void>
   presign(connection: Connection, bucket: string, key: string, expiresInSeconds: number): Promise<string>

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Connection } from '@shared/types'
+import { BucketService } from '../src/main/app/bucket-service'
 import { ObjectService } from '../src/main/app/object-service'
 import { createCredentialResolver } from '../src/main/infra/credentials/resolver'
 import { S3ClientFactory } from '../src/main/infra/s3/client-factory'
@@ -256,5 +257,70 @@ describe('directories', () => {
     await storage.getObject(connectionFor(server), 'test-bucket', 'reports/2026/q2.csv', local, {})
 
     expect(await readFile(local, 'utf8')).toBe('quarter two')
+  })
+})
+
+describe('buckets and cross-bucket moves', () => {
+  it('rejects a bucket name S3 would reject', async () => {
+    const buckets = new BucketService(repositoryFor(connectionFor(server)) as never, storage)
+
+    await expect(buckets.create({ connectionId: 'test', name: 'Not Valid' })).rejects.toThrow(
+      /lowercase/i
+    )
+    await expect(buckets.create({ connectionId: 'test', name: '10.0.0.1' })).rejects.toThrow(
+      /IP address/i
+    )
+  })
+
+  it('copies a folder into another bucket, keeping its structure', async () => {
+    const buckets = new BucketService(repositoryFor(connectionFor(server)) as never, storage)
+
+    const result = await buckets.copy({
+      connectionId: 'test',
+      sourceBucket: 'test-bucket',
+      keys: [],
+      prefixes: ['reports/2026/'],
+      targetBucket: 'plain-bucket',
+      targetPrefix: 'archive/',
+      move: false
+    })
+
+    expect(result.copied).toBe(2)
+    expect(server.objects.has('plain-bucket/archive/2026/q1.csv')).toBe(true)
+    // A copy leaves the originals alone.
+    expect(server.objects.has('test-bucket/reports/2026/q1.csv')).toBe(true)
+  })
+
+  it('moves objects, deleting the originals only after copying', async () => {
+    const buckets = new BucketService(repositoryFor(connectionFor(server)) as never, storage)
+
+    const result = await buckets.copy({
+      connectionId: 'test',
+      sourceBucket: 'test-bucket',
+      keys: ['other/notes.txt'],
+      prefixes: [],
+      targetBucket: 'test-bucket',
+      targetPrefix: 'reports/',
+      move: true
+    })
+
+    expect(result.copied).toBe(1)
+    expect(server.objects.get('test-bucket/reports/notes.txt')?.body.toString()).toBe('notes')
+    expect(server.objects.has('test-bucket/other/notes.txt')).toBe(false)
+  })
+
+  it('rewrites an object to change its storage class', async () => {
+    const buckets = new BucketService(repositoryFor(connectionFor(server)) as never, storage)
+
+    const result = await buckets.setStorageClass({
+      connectionId: 'test',
+      bucket: 'test-bucket',
+      keys: ['reports/readme.txt'],
+      storageClass: 'GLACIER_IR'
+    })
+
+    expect(result.copied).toBe(1)
+    const copy = server.requests.filter((request) => request.headers['x-amz-copy-source']).at(-1)
+    expect(copy?.headers['x-amz-storage-class']).toBe('GLACIER_IR')
   })
 })
