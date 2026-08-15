@@ -17,7 +17,8 @@ export function UploadDialog({
   onConfirm,
   onCancel
 }: {
-  paths: string[]
+  /** Null when opened to change the setting rather than to confirm a specific upload. */
+  paths: string[] | null
   onConfirm: (encryption: UploadEncryption) => void
   onCancel: () => void
 }) {
@@ -88,7 +89,9 @@ export function UploadDialog({
         className="w-[520px] rounded-[4px] border border-line bg-panel p-4 shadow-2xl"
       >
         <p className="text-[13px] text-text">
-          Upload {paths.length} {paths.length === 1 ? 'item' : 'items'}
+          {paths
+            ? `Upload ${paths.length} ${paths.length === 1 ? 'item' : 'items'}`
+            : 'Encryption for uploads'}
         </p>
         <p className="tabular mt-1 text-[11.5px] break-all text-muted">
           s3://{location?.bucket}/{location?.prefix}
@@ -138,7 +141,7 @@ export function UploadDialog({
         <div className="mt-4 flex justify-end gap-2">
           <Button onClick={onCancel}>Cancel</Button>
           <Button variant="primary" onClick={confirm} disabled={!ready}>
-            Upload
+            {paths ? 'Upload' : 'Use this'}
           </Button>
         </div>
       </div>

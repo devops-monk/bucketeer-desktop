@@ -143,12 +143,43 @@ export class S3ObjectStorage implements ObjectStorage {
         resolved = { sseAlgorithm: rule.SSEAlgorithm, kmsKeyId: rule.KMSMasterKeyID }
       }
     } catch {
-      // Denied, or no configuration set. Neither is fatal: the upload simply falls back
-      // to whatever the connection specifies.
+      // Denied, or nothing configured. Not fatal — see the fallback below.
+    }
+
+    // s3:GetEncryptionConfiguration is an administrative permission that ordinary users
+    // are rarely granted, so the answer above is often unavailable to exactly the people
+    // who need it. An object already in the bucket carries the same answer: HeadObject
+    // reports the key it was encrypted with, and reading objects is what these users can
+    // do. This is what spares them having to find a key ARN by hand.
+    if (!resolved?.kmsKeyId) {
+      const inferred = await this.inferEncryptionFromObject(connection, bucket)
+      if (inferred) resolved = inferred
     }
 
     this.defaultEncryption.set(cacheKey, resolved)
     return resolved
+  }
+
+  /** Reads the encryption of any one object in the bucket. */
+  private async inferEncryptionFromObject(
+    connection: Connection,
+    bucket: string
+  ): Promise<{ sseAlgorithm: string; kmsKeyId?: string } | null> {
+    try {
+      const client = await this.factory.forBucket(connection, bucket)
+      const listing = await client.send(
+        new ListObjectsV2Command({ Bucket: bucket, MaxKeys: 1 })
+      )
+      const key = listing.Contents?.[0]?.Key
+      if (!key) return null
+
+      const head = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+      if (!head.ServerSideEncryption) return null
+
+      return { sseAlgorithm: head.ServerSideEncryption, kmsKeyId: head.SSEKMSKeyId }
+    } catch {
+      return null
+    }
   }
 
   async listAllKeys(connection: Connection, bucket: string, prefix: string): Promise<S3Object[]> {

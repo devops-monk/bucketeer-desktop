@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, messageFor } from '../lib/api'
+import { resolveUploadEncryption, shortKeyLabel } from '../lib/uploads'
 import { useSession } from '../store/session'
-import type { UploadEncryption } from '@shared/types'
+import type { BucketEncryption, UploadEncryption } from '@shared/types'
 import { ConfirmDialog, LinkDialog, PromptDialog } from './dialogs'
 import { UploadDialog } from './UploadDialog'
 import {
@@ -29,6 +30,9 @@ export function Toolbar() {
   const location = useSession((state) => state.location)
   const selection = useSession((state) => state.selection)
   const prefixSelection = useSession((state) => state.prefixSelection)
+  const connections = useSession((state) => state.connections)
+  const uploadOverride = useSession((state) => state.uploadOverride)
+  const setUploadOverride = useSession((state) => state.setUploadOverride)
   const filter = useSession((state) => state.filter)
   const setFilter = useSession((state) => state.setFilter)
   const refresh = useSession((state) => state.refresh)
@@ -36,6 +40,8 @@ export function Toolbar() {
   const [dialog, setDialog] = useState<'folder' | 'rename' | 'delete' | null>(null)
   const [link, setLink] = useState<string | null>(null)
   const [pendingPaths, setPendingPaths] = useState<string[] | null>(null)
+  const [chooserOpen, setChooserOpen] = useState(false)
+  const [bucketEncryption, setBucketEncryption] = useState<BucketEncryption | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -50,15 +56,25 @@ export function Toolbar() {
     setError(null)
     try {
       const paths = await api.dialog.pickFiles()
-      // Encryption is confirmed before anything moves, not after a denial.
-      if (paths.length > 0) setPendingPaths(paths)
+      if (paths.length === 0) return
+
+      // Only ask when the key genuinely cannot be worked out. Making someone paste a
+      // key ARN to upload a spreadsheet is a failure of the tool, not of the user.
+      const resolved = await resolveUploadEncryption(
+        connectionId as string,
+        location!.bucket,
+        uploadOverride,
+        connections.find((c) => c.id === connectionId)?.kmsKeyId
+      )
+      if (resolved.needsChoice) setPendingPaths(paths)
+      else await startUpload(resolved.encryption, paths)
     } catch (failure) {
       setError(messageFor(failure))
     }
   }
 
-  async function startUpload(encryption: UploadEncryption) {
-    const paths = pendingPaths ?? []
+  async function startUpload(encryption: UploadEncryption, explicitPaths?: string[]) {
+    const paths = explicitPaths ?? pendingPaths ?? []
     setPendingPaths(null)
     try {
       await api.transfers.upload({
@@ -201,6 +217,16 @@ export function Toolbar() {
 
         <div className="flex-1" />
 
+        <EncryptionBadge
+          connectionId={connectionId}
+          bucket={location.bucket}
+          override={uploadOverride}
+          connectionKey={connections.find((c) => c.id === connectionId)?.kmsKeyId}
+          resolved={bucketEncryption}
+          onResolved={setBucketEncryption}
+          onOpen={() => setChooserOpen(true)}
+        />
+
         <Input
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
@@ -270,7 +296,77 @@ export function Toolbar() {
           onCancel={() => setPendingPaths(null)}
         />
       ) : null}
+
+      {chooserOpen ? (
+        <UploadDialog
+          paths={null}
+          onConfirm={(encryption) => {
+            setUploadOverride(encryption)
+            setChooserOpen(false)
+          }}
+          onCancel={() => setChooserOpen(false)}
+        />
+      ) : null}
     </>
+  )
+}
+
+/**
+ * Shows which key the next upload will use, and lets it be changed.
+ *
+ * Present because encryption is invisible otherwise: this bucket's policy makes the
+ * difference between an upload working and being denied, so the setting belongs on
+ * screen rather than inside a dialog nobody opens.
+ */
+function EncryptionBadge({
+  connectionId,
+  bucket,
+  override,
+  connectionKey,
+  resolved,
+  onResolved,
+  onOpen
+}: {
+  connectionId: string
+  bucket: string
+  override: UploadEncryption | null
+  connectionKey?: string
+  resolved: BucketEncryption | null
+  onResolved: (value: BucketEncryption | null) => void
+  onOpen: () => void
+}) {
+  useEffect(() => {
+    let cancelled = false
+    api.buckets
+      .encryption(connectionId, bucket)
+      .then((value) => {
+        if (!cancelled) onResolved(value)
+      })
+      .catch(() => {
+        if (!cancelled) onResolved(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [connectionId, bucket, onResolved])
+
+  const key =
+    override?.mode === 'kms' ? override.kmsKeyId : (connectionKey ?? resolved?.kmsKeyId ?? null)
+  const none = override?.mode === 'none'
+
+  return (
+    <button
+      onClick={onOpen}
+      className="tabular flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] border border-line px-2 text-[11px] hover:border-faint"
+      title={key ? `Uploads are encrypted with ${key}` : 'No KMS key resolved for uploads'}
+    >
+      <span className={none ? 'text-faint' : key ? 'text-success' : 'text-danger'} aria-hidden>
+        ⚿
+      </span>
+      <span className="text-muted">
+        {none ? 'no encryption' : key ? shortKeyLabel(key) : 'no key'}
+      </span>
+    </button>
   )
 }
 

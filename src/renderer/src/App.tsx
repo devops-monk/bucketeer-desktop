@@ -13,6 +13,7 @@ import { TransferPanel } from './components/TransferPanel'
 import { SsoSignIn } from './components/SsoSignIn'
 import { Button, EmptyState, ErrorNotice, LoadingBar } from './components/primitives'
 import { api, messageFor } from './lib/api'
+import { resolveUploadEncryption } from './lib/uploads'
 import { useSession } from './store/session'
 import { useTransfers } from './store/transfers'
 
@@ -41,6 +42,7 @@ export function App() {
   const selectAll = useSession((state) => state.selectAll)
   const clearSelection = useSession((state) => state.clearSelection)
 
+  const uploadOverride = useSession((state) => state.uploadOverride)
   const subscribeTransfers = useTransfers((state) => state.subscribe)
 
   useEffect(() => {
@@ -76,12 +78,31 @@ export function App() {
       const paths = [...event.dataTransfer.files].map((file) => window.pathForFile(file)).filter(Boolean)
       if (paths.length === 0) return
 
-      // Dropped files take the same confirmation as the toolbar: which key encrypts
-      // an upload is not something to decide silently on the user's behalf.
       setDropError(null)
-      setDroppedPaths(paths)
+      try {
+        // Same rule as the toolbar: ask only when the key cannot be worked out.
+        const resolved = await resolveUploadEncryption(
+          activeId,
+          location.bucket,
+          uploadOverride,
+          connections.find((c) => c.id === activeId)?.kmsKeyId
+        )
+        if (resolved.needsChoice) {
+          setDroppedPaths(paths)
+          return
+        }
+        await api.transfers.upload({
+          connectionId: activeId,
+          bucket: location.bucket,
+          prefix: location.prefix,
+          paths,
+          encryption: resolved.encryption
+        })
+      } catch (failure) {
+        setDropError(messageFor(failure))
+      }
     },
-    [activeId, location]
+    [activeId, location, uploadOverride, connections]
   )
 
   async function startDroppedUpload(encryption: UploadEncryption) {

@@ -1,5 +1,11 @@
 import { create } from 'zustand'
-import type { Bucket, ConnectionSummary, ListingPage, S3Object } from '@shared/types'
+import type {
+  Bucket,
+  ConnectionSummary,
+  ListingPage,
+  S3Object,
+  UploadEncryption
+} from '@shared/types'
 import { api, messageFor } from '../lib/api'
 
 /**
@@ -25,6 +31,8 @@ interface SessionState {
   prefixSelection: Set<string>
   /** Case-insensitive substring filter applied to the current listing. */
   filter: string
+  /** An explicit encryption choice for uploads, until the bucket changes. */
+  uploadOverride: UploadEncryption | null
   loading: boolean
   loadingMore: boolean
   error: string | null
@@ -42,6 +50,7 @@ interface SessionState {
   clearSelection: () => void
   selectAll: () => void
   setFilter: (filter: string) => void
+  setUploadOverride: (encryption: UploadEncryption | null) => void
 }
 
 export const useSession = create<SessionState>((set, get) => ({
@@ -53,6 +62,7 @@ export const useSession = create<SessionState>((set, get) => ({
   selection: new Set(),
   prefixSelection: new Set(),
   filter: '',
+  uploadOverride: null,
   loading: false,
   loadingMore: false,
   error: null,
@@ -88,7 +98,8 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   async openBucket(bucket) {
-    set({ location: { bucket, prefix: '' } })
+    // The override belongs to the bucket it was chosen for, never the next one.
+    set({ location: { bucket, prefix: '' }, uploadOverride: null })
     await get().refresh()
   },
 
@@ -169,6 +180,10 @@ export const useSession = create<SessionState>((set, get) => ({
 
   setFilter(filter) {
     set({ filter })
+  },
+
+  setUploadOverride(encryption) {
+    set({ uploadOverride: encryption })
   },
 
   toggleSelection(key, additive) {
