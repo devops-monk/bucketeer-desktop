@@ -135,6 +135,12 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
       })
 
     void (async () => {
+      // A request naming a bucket that does not exist is a 404, not an empty result.
+      // Answering with silence lets a wrong bucket name look like an empty bucket.
+      if (bucket && !buckets.includes(bucket)) {
+        return send(404, xml('<Error><Code>NoSuchBucket</Code></Error>'))
+      }
+
       // ListBuckets
       if (request.method === 'GET' && !bucket) {
         return send(

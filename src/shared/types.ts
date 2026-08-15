@@ -343,6 +343,28 @@ export interface DownloadRequest {
   destination: string
 }
 
+/** A walk of every key under a prefix, matching names as it goes. */
+export interface SearchRequest {
+  connectionId: string
+  bucket: string
+  /** Where to start. Empty searches the whole bucket. */
+  prefix: string
+  query: string
+  caseSensitive?: boolean
+}
+
+export interface SearchUpdate {
+  id: string
+  /** Keys looked at so far, which is what makes progress legible on a large bucket. */
+  scanned: number
+  matches: S3Object[]
+  done: boolean
+  cancelled?: boolean
+  /** True when the result limit was reached and the walk stopped early. */
+  truncated?: boolean
+  error?: string
+}
+
 /** A one-way sync from a local folder into a bucket prefix. */
 export interface SyncRequest {
   connectionId: string

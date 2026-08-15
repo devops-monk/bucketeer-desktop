@@ -6,6 +6,7 @@ import type { BucketEncryption, UploadEncryption } from '@shared/types'
 import { ConfirmDialog, LinkDialog, PromptDialog, StorageClassDialog } from './dialogs'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { DestinationDialog } from './DestinationDialog'
+import { SearchPanel } from './SearchPanel'
 import { SyncDialog } from './SyncDialog'
 import { UploadDialog } from './UploadDialog'
 import {
@@ -13,6 +14,7 @@ import {
   CopyIcon,
   DownloadIcon,
   KeyIcon,
+  FindIcon,
   InfoIcon,
   MoveIcon,
   SyncIcon,
@@ -54,6 +56,7 @@ export function Toolbar() {
   >(null)
   const [link, setLink] = useState<string | null>(null)
   const [chooserOpen, setChooserOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [bucketEncryption, setBucketEncryption] = useState<BucketEncryption | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -426,6 +429,13 @@ export function Toolbar() {
           onOpen={() => setChooserOpen(true)}
         />
 
+        <Tooltip label="Find objects by name anywhere below this folder" side="bottom">
+          <Button variant="secondary" onClick={() => setSearchOpen(true)}>
+            <FindIcon />
+            Search
+          </Button>
+        </Tooltip>
+
         <SearchInput
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
@@ -519,6 +529,8 @@ export function Toolbar() {
       ) : null}
 
       {dialog === 'sync' ? <SyncDialog onClose={() => setDialog(null)} /> : null}
+
+      {searchOpen ? <SearchPanel onClose={() => setSearchOpen(false)} /> : null}
 
       {chooserOpen ? (
         <UploadDialog

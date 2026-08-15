@@ -86,6 +86,12 @@ export const api = {
     restore: (...args: Parameters<typeof bridge.objects.restore>) =>
       unwrap(bridge.objects.restore(...args))
   },
+  search: {
+    start: (...args: Parameters<typeof bridge.search.start>) =>
+      unwrap(bridge.search.start(...args)),
+    cancel: (id: string) => unwrap(bridge.search.cancel(id)),
+    onUpdate: bridge.search.onUpdate
+  },
   sync: {
     analyze: (...args: Parameters<typeof bridge.sync.analyze>) =>
       unwrap(bridge.sync.analyze(...args)),

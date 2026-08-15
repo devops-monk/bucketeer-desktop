@@ -4,6 +4,7 @@ import { BrowsingService } from './app/browsing-service'
 import { BucketService } from './app/bucket-service'
 import { ConnectionService } from './app/connection-service'
 import { ObjectService } from './app/object-service'
+import { SearchService } from './app/search-service'
 import { SyncService } from './app/sync-service'
 import { TransferService } from './app/transfer-service'
 import type { Clock, IdGenerator, ObjectStorage } from './core/ports'
@@ -85,6 +86,7 @@ export function createContainer(): Container {
   )
 
   const sync = new SyncService(repository, storage, transfers)
+  const search = new SearchService(repository, storage, broadcaster, uuidGenerator)
 
   const applyPreferences = async (): Promise<void> => {
     const { preferences } = await settings.read()
@@ -108,13 +110,14 @@ export function createContainer(): Container {
         new ConnectionModule(connections),
         new BrowsingModule(browsing),
         new ObjectModule(objects, buckets),
-        new TransferModule(transfers, sync),
+        new TransferModule(transfers, sync, search),
         new AppModule(settings, applyPreferences)
       ]
       for (const module of modules) module.register(router)
     },
     dispose() {
       system.dispose()
+      search.dispose()
       // Abort in-flight transfers before tearing down the clients they are using.
       transfers.dispose()
       storage.dispose()

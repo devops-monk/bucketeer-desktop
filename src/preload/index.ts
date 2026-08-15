@@ -17,6 +17,8 @@ import type {
   RestoreRequest,
   VersionActionRequest,
   RenameRequest,
+  SearchRequest,
+  SearchUpdate,
   SsoPending,
   SyncPlan,
   SyncRequest,
@@ -89,6 +91,15 @@ const api: BucketeerApi = {
     setHeaders: (connectionId: string, bucket: string, key: string, headers: ObjectHeaders) =>
       ipcRenderer.invoke(Channels.objectsSetHeaders, connectionId, bucket, key, headers),
     restore: (request: RestoreRequest) => ipcRenderer.invoke(Channels.objectsRestore, request)
+  },
+  search: {
+    start: (request: SearchRequest) => ipcRenderer.invoke(Channels.searchStart, request),
+    cancel: (id: string) => ipcRenderer.invoke(Channels.searchCancel, id),
+    onUpdate: (listener: (update: SearchUpdate) => void) => {
+      const handler = (_event: unknown, update: SearchUpdate) => listener(update)
+      ipcRenderer.on(Channels.searchUpdated, handler)
+      return () => ipcRenderer.removeListener(Channels.searchUpdated, handler)
+    }
   },
   sync: {
     analyze: (request: SyncRequest) => ipcRenderer.invoke(Channels.syncAnalyze, request),

@@ -86,7 +86,7 @@ without them.
 
 | Feature | Effort | Notes |
 | --- | --- | --- |
-| Search across a bucket | L | Streaming walk with progress, never held in memory |
+| Search across a bucket | L | Streaming walk, stoppable, results as they arrive — **done** |
 | Bandwidth limits | M | One shared ceiling, in preferences — **done** |
 | Proxy support | S | In preferences, applied to every AWS request — **done** |
 | Transfer acceleration | S | Per connection — **done** |

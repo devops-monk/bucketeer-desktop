@@ -13,6 +13,7 @@ import type {
   ObjectHeaders,
   ObjectVersion,
   S3Object,
+  SearchUpdate,
   SsoLoginResult,
   SsoPending,
   Transfer
@@ -229,4 +230,5 @@ export interface Clock {
 export interface EventBroadcaster {
   transfersChanged(transfers: Transfer[]): void
   ssoPending(pending: SsoPending): void
+  searchUpdated(update: SearchUpdate): void
 }

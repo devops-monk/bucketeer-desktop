@@ -1,6 +1,13 @@
 import { dialog } from 'electron'
 import { Channels } from '@shared/ipc'
-import type { DownloadRequest, SyncPlan, SyncRequest, UploadRequest } from '@shared/types'
+import type {
+  DownloadRequest,
+  SearchRequest,
+  SyncPlan,
+  SyncRequest,
+  UploadRequest
+} from '@shared/types'
+import type { SearchService } from '../app/search-service'
 import type { SyncService } from '../app/sync-service'
 import type { TransferService } from '../app/transfer-service'
 import type { IpcModule, IpcRouter } from './router'
@@ -9,7 +16,8 @@ import type { IpcModule, IpcRouter } from './router'
 export class TransferModule implements IpcModule {
   constructor(
     private readonly service: TransferService,
-    private readonly sync: SyncService
+    private readonly sync: SyncService,
+    private readonly search: SearchService
   ) {}
 
   register(router: IpcRouter): void {
@@ -22,6 +30,8 @@ export class TransferModule implements IpcModule {
     router.handle(Channels.transfersPause, (id: string) => this.service.pause(id))
     router.handle(Channels.transfersResume, (id: string) => this.service.resume(id))
     router.handle(Channels.transfersClearFinished, () => this.service.clearFinished())
+    router.handle(Channels.searchStart, (request: SearchRequest) => this.search.start(request))
+    router.handle(Channels.searchCancel, (id: string) => this.search.cancel(id))
     router.handle(Channels.syncAnalyze, (request: SyncRequest) => this.sync.analyze(request))
     router.handle(Channels.syncApply, (request: SyncRequest, plan: SyncPlan) =>
       this.sync.apply(request, plan)

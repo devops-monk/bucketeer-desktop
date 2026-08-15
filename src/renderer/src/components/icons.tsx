@@ -206,3 +206,12 @@ export function SettingsIcon({ className }: IconProps) {
     </Svg>
   )
 }
+
+export function FindIcon({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="7.25" cy="7.25" r="4.5" />
+      <path d="M10.6 10.6 13.5 13.5" />
+    </Svg>
+  )
+}

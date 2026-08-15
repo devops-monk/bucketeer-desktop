@@ -1,6 +1,6 @@
 import { BrowserWindow } from 'electron'
 import { Channels } from '@shared/ipc'
-import type { SsoPending, Transfer } from '@shared/types'
+import type { SearchUpdate, SsoPending, Transfer } from '@shared/types'
 import type { EventBroadcaster } from '../core/ports'
 
 /**
@@ -17,6 +17,10 @@ export class WindowBroadcaster implements EventBroadcaster {
 
   ssoPending(pending: SsoPending): void {
     this.send(Channels.ssoPending, pending)
+  }
+
+  searchUpdated(update: SearchUpdate): void {
+    this.send(Channels.searchUpdated, update)
   }
 
   private send(channel: string, payload: unknown): void {

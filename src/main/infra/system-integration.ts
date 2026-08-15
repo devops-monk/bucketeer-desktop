@@ -46,6 +46,10 @@ export class SystemIntegration implements EventBroadcaster {
     this.inner.ssoPending(pending)
   }
 
+  searchUpdated(update: Parameters<EventBroadcaster['searchUpdated']>[0]): void {
+    this.inner.searchUpdated(update)
+  }
+
   dispose(): void {
     this.tray?.destroy()
     this.tray = null

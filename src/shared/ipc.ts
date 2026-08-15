@@ -26,6 +26,8 @@ import type {
   RenameRequest,
   KmsKey,
   Result,
+  SearchRequest,
+  SearchUpdate,
   SsoLoginResult,
   SsoPending,
   SyncPlan,
@@ -70,6 +72,10 @@ export const Channels = {
   bucketsDelete: 'buckets:delete',
   objectsCopy: 'objects:copy',
   objectsStorageClass: 'objects:storage-class',
+  searchStart: 'search:start',
+  searchCancel: 'search:cancel',
+  /** Main → renderer: a search made progress or finished. */
+  searchUpdated: 'search:updated',
   syncAnalyze: 'sync:analyze',
   syncApply: 'sync:apply',
   transfersUpload: 'transfers:upload',
@@ -172,6 +178,12 @@ export interface BucketeerApi {
     restore(
       request: RestoreRequest
     ): Promise<Result<{ started: number; failed: Array<{ key: string; reason: string }> }>>
+  }
+  search: {
+    /** Starts a walk and returns its id. Results arrive through onUpdate. */
+    start(request: SearchRequest): Promise<Result<string>>
+    cancel(id: string): Promise<Result<void>>
+    onUpdate(listener: (update: SearchUpdate) => void): () => void
   }
   sync: {
     /** Works out what would change, without changing anything. */
