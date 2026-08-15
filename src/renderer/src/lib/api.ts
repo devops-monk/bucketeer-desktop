@@ -38,6 +38,7 @@ export const api = {
   credentials: {
     sharedProfiles: () => unwrap(bridge.credentials.sharedProfiles()),
     ssoLogin: (profileName: string) => unwrap(bridge.credentials.ssoLogin(profileName)),
+    kmsKeys: (connectionId: string) => unwrap(bridge.credentials.kmsKeys(connectionId)),
     onSsoPending: bridge.credentials.onSsoPending
   },
   buckets: {

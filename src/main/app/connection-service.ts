@@ -1,10 +1,17 @@
-import type { Connection, ConnectionSummary, SsoLoginResult, SsoPending } from '@shared/types'
+import type {
+  Connection,
+  ConnectionSummary,
+  KmsKey,
+  SsoLoginResult,
+  SsoPending
+} from '@shared/types'
 import type {
   Clock,
   ConnectionRepository,
   CredentialResolver,
   IdGenerator,
   EventBroadcaster,
+  KeyDirectory,
   ObjectStorage,
   ProfileDirectory,
   SsoAuthenticator
@@ -33,6 +40,7 @@ export class ConnectionService {
     private readonly storage: ObjectStorage,
     private readonly profiles: ProfileDirectory,
     private readonly sso: SsoAuthenticator,
+    private readonly keys: KeyDirectory,
     private readonly broadcaster: EventBroadcaster,
     private readonly ids: IdGenerator,
     private readonly clock: Clock
@@ -72,6 +80,21 @@ export class ConnectionService {
 
   async sharedProfiles(): Promise<string[]> {
     return this.profiles.listProfiles()
+  }
+
+  /**
+   * KMS keys this connection can list, for choosing a default without typing an ARN.
+   *
+   * Returns an empty list rather than failing when kms:ListAliases is denied: not being
+   * able to browse keys is not a reason to block the connection editor, and the key can
+   * still be pasted in.
+   */
+  async listKmsKeys(connectionId: string): Promise<KmsKey[]> {
+    try {
+      return await this.keys.listKeys(await this.repository.get(connectionId))
+    } catch {
+      return []
+    }
   }
 
   /**

@@ -30,6 +30,7 @@ const api: BucketeerApi = {
   credentials: {
     sharedProfiles: () => ipcRenderer.invoke(Channels.sharedProfilesList),
     ssoLogin: (profileName: string) => ipcRenderer.invoke(Channels.credentialsSsoLogin, profileName),
+    kmsKeys: (connectionId: string) => ipcRenderer.invoke(Channels.credentialsKmsKeys, connectionId),
     onSsoPending: (listener: (pending: SsoPending) => void) => {
       const handler = (_event: unknown, pending: SsoPending) => listener(pending)
       ipcRenderer.on(Channels.ssoPending, handler)

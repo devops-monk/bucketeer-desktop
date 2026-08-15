@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ConnectionSummary, UploadEncryption } from '@shared/types'
+import type { ConnectionSummary } from '@shared/types'
 import { BucketList } from './components/BucketList'
 import { ConnectionEditor } from './components/ConnectionEditor'
 import { ConnectionRail } from './components/ConnectionRail'
@@ -8,7 +8,6 @@ import { ObjectDetails } from './components/ObjectDetails'
 import { ObjectTable } from './components/ObjectTable'
 import { PathBar } from './components/PathBar'
 import { Toolbar } from './components/Toolbar'
-import { UploadDialog } from './components/UploadDialog'
 import { TransferPanel } from './components/TransferPanel'
 import { SsoSignIn } from './components/SsoSignIn'
 import { Button, EmptyState, ErrorNotice, LoadingBar } from './components/primitives'
@@ -28,7 +27,6 @@ export function App() {
   const [detailsKey, setDetailsKey] = useState<string | null>(null)
   const [dropActive, setDropActive] = useState(false)
   const [dropError, setDropError] = useState<string | null>(null)
-  const [droppedPaths, setDroppedPaths] = useState<string[] | null>(null)
 
   const connections = useSession((state) => state.connections)
   const activeId = useSession((state) => state.activeConnectionId)
@@ -80,48 +78,19 @@ export function App() {
 
       setDropError(null)
       try {
-        // Same rule as the toolbar: ask only when the key cannot be worked out.
-        const resolved = await resolveUploadEncryption(
-          activeId,
-          location.bucket,
-          uploadOverride,
-          connections.find((c) => c.id === activeId)?.kmsKeyId
-        )
-        if (resolved.needsChoice) {
-          setDroppedPaths(paths)
-          return
-        }
         await api.transfers.upload({
           connectionId: activeId,
           bucket: location.bucket,
           prefix: location.prefix,
           paths,
-          encryption: resolved.encryption
+          encryption: await resolveUploadEncryption(uploadOverride)
         })
       } catch (failure) {
         setDropError(messageFor(failure))
       }
     },
-    [activeId, location, uploadOverride, connections]
+    [activeId, location, uploadOverride]
   )
-
-  async function startDroppedUpload(encryption: UploadEncryption) {
-    const paths = droppedPaths ?? []
-    setDroppedPaths(null)
-    if (!activeId || !location) return
-
-    try {
-      await api.transfers.upload({
-        connectionId: activeId,
-        bucket: location.bucket,
-        prefix: location.prefix,
-        paths,
-        encryption
-      })
-    } catch (failure) {
-      setDropError(messageFor(failure))
-    }
-  }
 
   function openEditor(connection: ConnectionSummary | null) {
     setEditing(connection)
@@ -243,14 +212,6 @@ export function App() {
 
       <TransferPanel />
       <ManifestStrip />
-
-      {droppedPaths ? (
-        <UploadDialog
-          paths={droppedPaths}
-          onConfirm={(encryption) => void startDroppedUpload(encryption)}
-          onCancel={() => setDroppedPaths(null)}
-        />
-      ) : null}
 
       {editorOpen ? (
         <ConnectionEditor connection={editing} onClose={() => setEditorOpen(false)} />

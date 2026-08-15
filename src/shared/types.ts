@@ -132,6 +132,14 @@ export interface SsoLoginResult {
   expiresAt: string
 }
 
+/** A KMS key a connection can see, for the key picker. */
+export interface KmsKey {
+  /** Full ARN — the form bucket policies are written against. */
+  keyArn: string
+  alias: string
+  managedByAws: boolean
+}
+
 /** A bucket's default server-side encryption, as reported by S3. */
 export interface BucketEncryption {
   sseAlgorithm: string

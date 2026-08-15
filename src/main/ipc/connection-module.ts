@@ -16,5 +16,8 @@ export class ConnectionModule implements IpcModule {
     router.handle(Channels.credentialsSsoLogin, (profileName: string) =>
       this.service.ssoLogin(profileName)
     )
+    router.handle(Channels.credentialsKmsKeys, (connectionId: string) =>
+      this.service.listKmsKeys(connectionId)
+    )
   }
 }

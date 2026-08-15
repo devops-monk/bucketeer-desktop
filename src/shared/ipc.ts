@@ -12,6 +12,7 @@ import type {
   ObjectDetail,
   PresignRequest,
   RenameRequest,
+  KmsKey,
   Result,
   SsoLoginResult,
   SsoPending,
@@ -28,6 +29,7 @@ export const Channels = {
   connectionsSecretsAvailable: 'connections:secrets-available',
   sharedProfilesList: 'credentials:shared-profiles',
   credentialsSsoLogin: 'credentials:sso-login',
+  credentialsKmsKeys: 'credentials:kms-keys',
   /** Main → renderer: a login is waiting for browser approval. */
   ssoPending: 'credentials:sso-pending',
   bucketsList: 'buckets:list',
@@ -74,6 +76,8 @@ export interface BucketeerApi {
     ssoLogin(profileName: string): Promise<Result<SsoLoginResult>>
     /** Fires while a login waits for approval, carrying the code to display. */
     onSsoPending(listener: (pending: SsoPending) => void): () => void
+    /** KMS keys this connection can list. Empty when the call is denied. */
+    kmsKeys(connectionId: string): Promise<Result<KmsKey[]>>
   }
   buckets: {
     list(connectionId: string): Promise<Result<Bucket[]>>

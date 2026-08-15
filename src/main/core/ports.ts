@@ -6,6 +6,7 @@ import type {
   CredentialSource,
   ListObjectsRequest,
   ListingPage,
+  KmsKey,
   ObjectDetail,
   S3Object,
   SsoLoginResult,
@@ -137,6 +138,11 @@ export interface ProfileDirectory {
 /** Opens a URL in the user's browser. A port so the login flow stays testable. */
 export interface UrlOpener {
   open(url: string): Promise<void>
+}
+
+/** Lists the KMS keys a connection can see. */
+export interface KeyDirectory {
+  listKeys(connection: Connection): Promise<KmsKey[]>
 }
 
 /** Signs a profile in to IAM Identity Center. */

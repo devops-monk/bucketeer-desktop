@@ -7,6 +7,7 @@ import { TransferService } from './app/transfer-service'
 import type { Clock, IdGenerator, ObjectStorage } from './core/ports'
 import { FileConnectionRepository } from './infra/connection-repository'
 import { SharedConfigProfileDirectory } from './infra/credentials/profile-directory'
+import { KmsKeyDirectory } from './infra/credentials/key-directory'
 import { createCredentialResolver } from './infra/credentials/resolver'
 import { DeviceCodeSsoAuthenticator } from './infra/credentials/sso-login'
 import { S3ClientFactory } from './infra/s3/client-factory'
@@ -53,6 +54,7 @@ export function createContainer(): Container {
     storage,
     profiles,
     sso,
+    new KmsKeyDirectory(credentials),
     broadcaster,
     uuidGenerator,
     systemClock

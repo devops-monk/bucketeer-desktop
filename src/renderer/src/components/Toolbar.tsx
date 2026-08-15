@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, messageFor } from '../lib/api'
-import { resolveUploadEncryption, shortKeyLabel } from '../lib/uploads'
+import { describeEncryption, readBucketEncryption, resolveUploadEncryption } from '../lib/uploads'
 import { useSession } from '../store/session'
 import type { BucketEncryption, UploadEncryption } from '@shared/types'
 import { ConfirmDialog, LinkDialog, PromptDialog } from './dialogs'
@@ -39,7 +39,6 @@ export function Toolbar() {
 
   const [dialog, setDialog] = useState<'folder' | 'rename' | 'delete' | null>(null)
   const [link, setLink] = useState<string | null>(null)
-  const [pendingPaths, setPendingPaths] = useState<string[] | null>(null)
   const [chooserOpen, setChooserOpen] = useState(false)
   const [bucketEncryption, setBucketEncryption] = useState<BucketEncryption | null>(null)
   const [busy, setBusy] = useState(false)
@@ -58,24 +57,15 @@ export function Toolbar() {
       const paths = await api.dialog.pickFiles()
       if (paths.length === 0) return
 
-      // Only ask when the key genuinely cannot be worked out. Making someone paste a
-      // key ARN to upload a spreadsheet is a failure of the tool, not of the user.
-      const resolved = await resolveUploadEncryption(
-        connectionId as string,
-        location!.bucket,
-        uploadOverride,
-        connections.find((c) => c.id === connectionId)?.kmsKeyId
-      )
-      if (resolved.needsChoice) setPendingPaths(paths)
-      else await startUpload(resolved.encryption, paths)
+      // Never stop to ask: the key is worked out in the main process, and most buckets
+      // need none at all.
+      await startUpload(await resolveUploadEncryption(uploadOverride), paths)
     } catch (failure) {
       setError(messageFor(failure))
     }
   }
 
-  async function startUpload(encryption: UploadEncryption, explicitPaths?: string[]) {
-    const paths = explicitPaths ?? pendingPaths ?? []
-    setPendingPaths(null)
+  async function startUpload(encryption: UploadEncryption, paths: string[]) {
     try {
       await api.transfers.upload({
         connectionId: connectionId as string,
@@ -289,14 +279,6 @@ export function Toolbar() {
         <LinkDialog url={link} expiresLabel="in 24 hours" onClose={() => setLink(null)} />
       ) : null}
 
-      {pendingPaths ? (
-        <UploadDialog
-          paths={pendingPaths}
-          onConfirm={(encryption) => void startUpload(encryption)}
-          onCancel={() => setPendingPaths(null)}
-        />
-      ) : null}
-
       {chooserOpen ? (
         <UploadDialog
           paths={null}
@@ -337,35 +319,27 @@ function EncryptionBadge({
 }) {
   useEffect(() => {
     let cancelled = false
-    api.buckets
-      .encryption(connectionId, bucket)
-      .then((value) => {
-        if (!cancelled) onResolved(value)
-      })
-      .catch(() => {
-        if (!cancelled) onResolved(null)
-      })
+    void readBucketEncryption(connectionId, bucket).then((value) => {
+      if (!cancelled) onResolved(value)
+    })
     return () => {
       cancelled = true
     }
   }, [connectionId, bucket, onResolved])
 
-  const key =
-    override?.mode === 'kms' ? override.kmsKeyId : (connectionKey ?? resolved?.kmsKeyId ?? null)
-  const none = override?.mode === 'none'
+  const described = describeEncryption(override, connectionKey, resolved)
+  const tones = { good: 'text-success', plain: 'text-faint', warn: 'text-danger' }
 
   return (
     <button
       onClick={onOpen}
       className="tabular flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] border border-line px-2 text-[11px] hover:border-faint"
-      title={key ? `Uploads are encrypted with ${key}` : 'No KMS key resolved for uploads'}
+      title={described.detail}
     >
-      <span className={none ? 'text-faint' : key ? 'text-success' : 'text-danger'} aria-hidden>
+      <span className={tones[described.tone]} aria-hidden>
         ⚿
       </span>
-      <span className="text-muted">
-        {none ? 'no encryption' : key ? shortKeyLabel(key) : 'no key'}
-      </span>
+      <span className="text-muted">{described.label}</span>
     </button>
   )
 }

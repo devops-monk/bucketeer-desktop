@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ConnectionSummary, CredentialKind, CredentialSource } from '@shared/types'
 import { api, messageFor } from '../lib/api'
 import { useSession } from '../store/session'
+import { KmsKeyPicker } from './KmsKeyPicker'
 import { SsoSignIn } from './SsoSignIn'
 import { Button, Field, Input, Select } from './primitives'
 
@@ -57,6 +58,7 @@ export function ConnectionEditor({ connection, onClose }: Props) {
   // is filled in the moment a new connection is first saved — otherwise pressing Test
   // and then Save would create the same connection twice.
   const [savedId, setSavedId] = useState<string | null>(connection?.id ?? null)
+  const [keyPickerOpen, setKeyPickerOpen] = useState(false)
   const [profiles, setProfiles] = useState<string[]>([])
   const [secretsAvailable, setSecretsAvailable] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -354,13 +356,25 @@ export function ConnectionEditor({ connection, onClose }: Props) {
                   className="tabular"
                 />
               </Field>
-              <Field label="KMS key for uploads" hint="Key id, ARN, or alias. Optional.">
-                <Input
-                  value={kmsKeyId}
-                  onChange={(event) => setKmsKeyId(event.target.value)}
-                  placeholder="alias/data-lake"
-                  className="tabular"
-                />
+              <Field
+                label="Default KMS key for uploads"
+                hint={
+                  savedId
+                    ? 'Optional. Left empty, Bucketeer uses whatever key the bucket itself uses.'
+                    : 'Optional. Save the connection first to browse its keys.'
+                }
+              >
+                <div className="flex gap-1.5">
+                  <Input
+                    value={kmsKeyId}
+                    onChange={(event) => setKmsKeyId(event.target.value)}
+                    placeholder="arn:aws:kms:eu-west-1:…:key/…"
+                    className="tabular flex-1"
+                  />
+                  <Button onClick={() => setKeyPickerOpen(true)} disabled={!savedId}>
+                    Browse
+                  </Button>
+                </div>
               </Field>
             </div>
 
@@ -400,6 +414,17 @@ export function ConnectionEditor({ connection, onClose }: Props) {
           </Button>
         </footer>
       </div>
+
+      {keyPickerOpen && savedId ? (
+        <KmsKeyPicker
+          connectionId={savedId}
+          onSelect={(keyArn) => {
+            setKmsKeyId(keyArn)
+            setKeyPickerOpen(false)
+          }}
+          onClose={() => setKeyPickerOpen(false)}
+        />
+      ) : null}
     </div>
   )
 }
