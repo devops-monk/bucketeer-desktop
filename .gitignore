@@ -43,3 +43,6 @@ pnpm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Internal documents dropped into the working tree — never publish these.
+*.pdf
