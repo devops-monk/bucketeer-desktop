@@ -34,10 +34,19 @@ const SIZE = 1024
 const TRAY = process.argv.includes('--tray')
 /** Windows and Linux tray icons are not tinted by the system, so they keep the brand. */
 const TRAY_COLOUR = process.argv.includes('--colour')
-const TRAY_SIZE = 36
+/**
+ * Menu bar and tray icons are drawn at 16 points, with a second image at twice the
+ * density for retina displays. Electron picks the @2x file automatically when it sits
+ * beside the first, which is what keeps the mark crisp — a single oversized bitmap is
+ * downscaled by the system and comes out soft and heavy.
+ */
+const TRAY_SIZES = [
+  ['', 16],
+  ['@2x', 32]
+]
 
-function trayFileName() {
-  return TRAY_COLOUR ? 'trayColour.png' : 'trayTemplate.png'
+function trayFileName(suffix) {
+  return TRAY_COLOUR ? `trayColour${suffix}.png` : `trayTemplate${suffix}.png`
 }
 
 /** The sizes an .iconset must contain, as {filename size} pairs. */
@@ -76,56 +85,68 @@ async function buildIcns(master, scratch) {
   console.log(`wrote ${target} — ${ICONSET.length} sizes, 16px to 1024px`)
 }
 
+// Destroying the last window would otherwise end the process before the next size is
+// rendered, on the platforms where Electron quits with the final window.
+app.on('window-all-closed', () => {})
+
 app.whenReady().then(async () => {
   const scratch = join(tmpdir(), `bucketeer-icon-${process.pid}`)
   try {
     await mkdir(scratch, { recursive: true })
     const source = await readFile(join(root, 'build', TRAY ? 'tray.svg' : 'icon.svg'), 'utf8')
-
-    // capturePage returns physical pixels, so a window of SIZE/scaleFactor logical
-    // pixels captures at exactly SIZE — no post-capture scaling required.
     const { scaleFactor } = screen.getPrimaryDisplay()
-    const target = TRAY ? TRAY_SIZE : SIZE
-    const logical = Math.round(target / scaleFactor)
-    let svg = source.replace(
-      TRAY ? /width="32" height="32"/ : /width="1024" height="1024"/,
-      `width="${logical}" height="${logical}"`
-    )
-    if (TRAY_COLOUR) svg = svg.replace(/#000000/g, '#DE007B')
 
-    const page = join(scratch, 'icon.html')
-    await writeFile(page, `<html><body style="margin:0;background:transparent">${svg}</body></html>`)
+    const wanted = TRAY
+      ? TRAY_SIZES.map(([suffix, size]) => [trayFileName(suffix), size])
+      : [['icon.png', SIZE]]
 
-    const window = new BrowserWindow({
-      width: logical,
-      height: logical,
-      // Shown, not hidden: capturePage only returns frames the compositor has actually
-      // painted, which hidden and offscreen-rendered windows never produce.
-      show: true,
-      x: 40,
-      y: 40,
-      frame: false,
-      transparent: true,
-      skipTaskbar: true
-    })
+    let lastPath = ''
+    for (const [name, target] of wanted) {
+      // capturePage returns physical pixels, so a window of target/scaleFactor logical
+      // pixels captures at exactly target — no post-capture scaling required.
+      const logical = Math.round(target / scaleFactor)
+      let svg = source.replace(
+        TRAY ? /width="32" height="32"/ : /width="1024" height="1024"/,
+        `width="${logical}" height="${logical}"`
+      )
+      if (TRAY_COLOUR) svg = svg.replace(/#000000/g, '#DE007B')
 
-    await window.loadFile(page)
-    await new Promise((resolve) => setTimeout(resolve, 600))
+      const page = join(scratch, `${name}.html`)
+      await writeFile(page, `<html><body style="margin:0;background:transparent">${svg}</body></html>`)
 
-    const png = (await window.webContents.capturePage()).toPNG()
-    const { width } = nativeImage.createFromBuffer(png).getSize()
-    if (width !== target) {
-      throw new Error(`Expected a ${target}px render but got ${width}px.`)
+      const window = new BrowserWindow({
+        width: logical,
+        height: logical,
+        // Shown, not hidden: capturePage only returns frames the compositor has actually
+        // painted, which hidden and offscreen-rendered windows never produce.
+        show: true,
+        x: 40,
+        y: 40,
+        frame: false,
+        transparent: true,
+        skipTaskbar: true
+      })
+
+      await window.loadFile(page)
+      await new Promise((resolve) => setTimeout(resolve, 600))
+
+      const png = (await window.webContents.capturePage()).toPNG()
+      const { width } = nativeImage.createFromBuffer(png).getSize()
+      if (width !== target) {
+        throw new Error(`Expected a ${target}px render but got ${width}px.`)
+      }
+      window.destroy()
+
+      // The Template suffix is what tells macOS to tint the icon with the menu bar's
+      // colour; Windows and Linux tray icons are drawn as-is and so keep their own.
+      const outputPath = join(root, 'build', name)
+      await writeFile(outputPath, png)
+      lastPath = outputPath
+      console.log(`wrote ${outputPath} — ${width}px, ${(png.length / 1024).toFixed(1)} kB`)
     }
 
-    // The Template suffix is what tells macOS to tint the icon with the menu bar's
-    // colour; Windows and Linux tray icons are drawn as-is and so keep their own.
-    const outputPath = join(root, 'build', TRAY ? trayFileName() : 'icon.png')
-    await writeFile(outputPath, png)
-    console.log(`wrote ${outputPath} — ${width}px, ${(png.length / 1024).toFixed(1)} kB`)
-
     if (!TRAY && process.platform === 'darwin') {
-      await buildIcns(outputPath, scratch)
+      await buildIcns(lastPath, scratch)
     }
   } catch (error) {
     console.error('Icon generation failed:', error)
