@@ -51,6 +51,8 @@ export const api = {
       unwrap(bridge.buckets.setPolicy(...args)),
     setVersioning: (...args: Parameters<typeof bridge.buckets.setVersioning>) =>
       unwrap(bridge.buckets.setVersioning(...args)),
+    setCors: (...args: Parameters<typeof bridge.buckets.setCors>) =>
+      unwrap(bridge.buckets.setCors(...args)),
     create: (...args: Parameters<typeof bridge.buckets.create>) =>
       unwrap(bridge.buckets.create(...args)),
     remove: (...args: Parameters<typeof bridge.buckets.remove>) =>

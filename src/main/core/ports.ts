@@ -3,6 +3,7 @@ import type {
   Bucket,
   BucketSettings,
   Connection,
+  CorsRule,
   CredentialKind,
   CredentialSource,
   ListObjectsRequest,
@@ -125,6 +126,8 @@ export interface ObjectStorage {
   ): Promise<void>
   /** Administrative settings, each read independently so one refusal hides only itself. */
   getBucketSettings(connection: Connection, bucket: string): Promise<BucketSettings>
+  /** Replaces the CORS rules. Passing null removes the configuration. */
+  putCors(connection: Connection, bucket: string, rules: CorsRule[] | null): Promise<void>
   /** Replaces the bucket policy. Passing null removes it entirely. */
   putBucketPolicy(connection: Connection, bucket: string, policy: string | null): Promise<void>
   setVersioning(connection: Connection, bucket: string, enabled: boolean): Promise<void>

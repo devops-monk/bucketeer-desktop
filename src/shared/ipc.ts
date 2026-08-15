@@ -3,6 +3,7 @@ import type {
   BucketEncryption,
   BucketSettings,
   CopyResult,
+  CorsRule,
   CreateBucketRequest,
   DeleteBucketRequest,
   SetStorageClassRequest,
@@ -63,6 +64,7 @@ export const Channels = {
   bucketsSettings: 'buckets:settings',
   bucketsSetPolicy: 'buckets:set-policy',
   bucketsSetVersioning: 'buckets:set-versioning',
+  bucketsSetCors: 'buckets:set-cors',
   bucketsCreate: 'buckets:create',
   bucketsDelete: 'buckets:delete',
   objectsCopy: 'objects:copy',
@@ -122,6 +124,8 @@ export interface BucketeerApi {
     /** Replaces the policy, or removes it when given null. Validated before sending. */
     setPolicy(connectionId: string, bucket: string, policy: string | null): Promise<Result<void>>
     setVersioning(connectionId: string, bucket: string, enabled: boolean): Promise<Result<void>>
+    /** Replaces the CORS rules, or removes them when given null. */
+    setCors(connectionId: string, bucket: string, rules: CorsRule[] | null): Promise<Result<void>>
     create(request: CreateBucketRequest): Promise<Result<void>>
     /** Fails while the bucket still holds anything, which S3 enforces. */
     remove(request: DeleteBucketRequest): Promise<Result<void>>

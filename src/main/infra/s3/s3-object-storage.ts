@@ -9,7 +9,14 @@ import {
   DeleteBucketCommand,
   DeleteBucketPolicyCommand,
   DeleteObjectCommand,
+  DeleteBucketCorsCommand,
+  GetBucketCorsCommand,
+  GetBucketLifecycleConfigurationCommand,
+  GetBucketLoggingCommand,
   GetBucketPolicyCommand,
+  GetBucketRequestPaymentCommand,
+  GetBucketWebsiteCommand,
+  PutBucketCorsCommand,
   GetBucketVersioningCommand,
   GetPublicAccessBlockCommand,
   PutBucketPolicyCommand,
@@ -33,6 +40,7 @@ import type {
   Bucket,
   BucketSettings,
   Connection,
+  CorsRule,
   ListObjectsRequest,
   ListingPage,
   ObjectDetail,
@@ -569,7 +577,17 @@ export class S3ObjectStorage implements ObjectStorage {
       publicAccess: null,
       publicAccessDenied: false,
       encryption: null,
-      encryptionDenied: false
+      encryptionDenied: false,
+      lifecycle: null,
+      lifecycleDenied: false,
+      cors: null,
+      corsDenied: false,
+      logging: null,
+      loggingDenied: false,
+      website: null,
+      websiteDenied: false,
+      requesterPays: null,
+      requesterPaysDenied: false
     }
 
     try {
@@ -605,7 +623,124 @@ export class S3ObjectStorage implements ObjectStorage {
     settings.encryption = await this.getDefaultEncryption(connection, bucket)
     settings.encryptionDenied = settings.encryption === null
 
+    // Each of the remaining reads is its own permission, and a bucket normally has most
+    // of them unset. "Not configured" answers with a specific code, so only anything
+    // else counts as a refusal.
+    await Promise.all([
+      this.read(
+        () => client.send(new GetBucketLifecycleConfigurationCommand({ Bucket: bucket })),
+        'NoSuchLifecycleConfiguration',
+        (result) => {
+          settings.lifecycle = (result.Rules ?? []).map((rule) => ({
+            id: rule.ID ?? '(unnamed)',
+            status: rule.Status ?? 'Unknown',
+            prefix: rule.Filter?.Prefix ?? rule.Prefix ?? '',
+            expirationDays: rule.Expiration?.Days,
+            transitions: (rule.Transitions ?? []).map((transition) => ({
+              days: transition.Days,
+              storageClass: transition.StorageClass ?? 'Unknown'
+            })),
+            abortIncompleteAfterDays: rule.AbortIncompleteMultipartUpload?.DaysAfterInitiation,
+            noncurrentExpirationDays: rule.NoncurrentVersionExpiration?.NoncurrentDays
+          }))
+        },
+        (denied) => (settings.lifecycleDenied = denied)
+      ),
+
+      this.read(
+        () => client.send(new GetBucketCorsCommand({ Bucket: bucket })),
+        'NoSuchCORSConfiguration',
+        (result) => {
+          settings.cors = (result.CORSRules ?? []).map((rule) => ({
+            allowedOrigins: rule.AllowedOrigins ?? [],
+            allowedMethods: rule.AllowedMethods ?? [],
+            allowedHeaders: rule.AllowedHeaders ?? [],
+            exposeHeaders: rule.ExposeHeaders ?? [],
+            maxAgeSeconds: rule.MaxAgeSeconds
+          }))
+        },
+        (denied) => (settings.corsDenied = denied)
+      ),
+
+      this.read(
+        () => client.send(new GetBucketLoggingCommand({ Bucket: bucket })),
+        null,
+        (result) => {
+          const enabled = result.LoggingEnabled
+          settings.logging = enabled?.TargetBucket
+            ? { targetBucket: enabled.TargetBucket, targetPrefix: enabled.TargetPrefix ?? '' }
+            : null
+        },
+        (denied) => (settings.loggingDenied = denied)
+      ),
+
+      this.read(
+        () => client.send(new GetBucketWebsiteCommand({ Bucket: bucket })),
+        'NoSuchWebsiteConfiguration',
+        (result) => {
+          settings.website = {
+            indexDocument: result.IndexDocument?.Suffix,
+            errorDocument: result.ErrorDocument?.Key
+          }
+        },
+        (denied) => (settings.websiteDenied = denied)
+      ),
+
+      this.read(
+        () => client.send(new GetBucketRequestPaymentCommand({ Bucket: bucket })),
+        null,
+        (result) => {
+          settings.requesterPays = result.Payer === 'Requester'
+        },
+        (denied) => (settings.requesterPaysDenied = denied)
+      )
+    ])
+
     return settings
+  }
+
+  /**
+   * Runs one settings read, separating "not configured" from "not allowed".
+   *
+   * S3 answers an unset configuration with its own error code, so anything else is a
+   * refusal — and the two lead to opposite conclusions for someone diagnosing a denial.
+   */
+  private async read<T>(
+    call: () => Promise<T>,
+    absentCode: string | null,
+    apply: (result: T) => void,
+    setDenied: (denied: boolean) => void
+  ): Promise<void> {
+    try {
+      apply(await call())
+    } catch (error) {
+      const code = (error as { name?: string }).name
+      setDenied(absentCode === null ? true : code !== absentCode)
+    }
+  }
+
+  async putCors(connection: Connection, bucket: string, rules: CorsRule[] | null): Promise<void> {
+    const client = await this.factory.forBucket(connection, bucket)
+
+    if (rules === null) {
+      await client.send(new DeleteBucketCorsCommand({ Bucket: bucket }))
+      return
+    }
+
+    await client.send(
+      new PutBucketCorsCommand({
+        Bucket: bucket,
+        CORSConfiguration: {
+          CORSRules: rules.map((rule) => ({
+            AllowedOrigins: rule.allowedOrigins,
+            AllowedMethods: rule.allowedMethods,
+            AllowedHeaders: rule.allowedHeaders,
+            ExposeHeaders: rule.exposeHeaders,
+            MaxAgeSeconds: rule.maxAgeSeconds
+          }))
+        }
+      })
+    )
   }
 
   async putBucketPolicy(

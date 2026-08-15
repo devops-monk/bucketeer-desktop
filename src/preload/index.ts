@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { Channels, type BucketeerApi } from '@shared/ipc'
 import type {
   Connection,
+  CorsRule,
   CreateBucketRequest,
   CreateFolderRequest,
   DeleteBucketRequest,
@@ -57,6 +58,8 @@ const api: BucketeerApi = {
       ipcRenderer.invoke(Channels.bucketsSetPolicy, connectionId, bucket, policy),
     setVersioning: (connectionId: string, bucket: string, enabled: boolean) =>
       ipcRenderer.invoke(Channels.bucketsSetVersioning, connectionId, bucket, enabled),
+    setCors: (connectionId: string, bucket: string, rules: CorsRule[] | null) =>
+      ipcRenderer.invoke(Channels.bucketsSetCors, connectionId, bucket, rules),
     create: (request: CreateBucketRequest) => ipcRenderer.invoke(Channels.bucketsCreate, request),
     remove: (request: DeleteBucketRequest) => ipcRenderer.invoke(Channels.bucketsDelete, request)
   },

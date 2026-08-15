@@ -430,3 +430,55 @@ describe('bucket settings', () => {
     )
   })
 })
+
+describe('CORS validation', () => {
+  it('rejects an origin with a trailing slash, which never matches a browser', async () => {
+    const buckets = new BucketService(repositoryFor(connectionFor(server)) as never, storage)
+
+    await expect(
+      buckets.setCors('test', 'test-bucket', [
+        {
+          allowedOrigins: ['https://example.com/'],
+          allowedMethods: ['GET'],
+          allowedHeaders: [],
+          exposeHeaders: []
+        }
+      ])
+    ).rejects.toThrow(/slash/i)
+  })
+
+  it('rejects an origin with no scheme', async () => {
+    const buckets = new BucketService(repositoryFor(connectionFor(server)) as never, storage)
+
+    await expect(
+      buckets.setCors('test', 'test-bucket', [
+        {
+          allowedOrigins: ['example.com'],
+          allowedMethods: ['GET'],
+          allowedHeaders: [],
+          exposeHeaders: []
+        }
+      ])
+    ).rejects.toThrow(/scheme/i)
+  })
+
+  it('accepts a wildcard origin', async () => {
+    const buckets = new BucketService(repositoryFor(connectionFor(server)) as never, storage)
+
+    await expect(
+      buckets.setCors('test', 'test-bucket', [
+        { allowedOrigins: ['*'], allowedMethods: ['GET'], allowedHeaders: [], exposeHeaders: [] }
+      ])
+    ).resolves.toBeUndefined()
+  })
+
+  it('requires a method', async () => {
+    const buckets = new BucketService(repositoryFor(connectionFor(server)) as never, storage)
+
+    await expect(
+      buckets.setCors('test', 'test-bucket', [
+        { allowedOrigins: ['*'], allowedMethods: [], allowedHeaders: [], exposeHeaders: [] }
+      ])
+    ).rejects.toThrow(/at least one origin and one method/i)
+  })
+})

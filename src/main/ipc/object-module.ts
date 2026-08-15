@@ -1,5 +1,6 @@
 import { Channels } from '@shared/ipc'
 import type {
+  CorsRule,
   CreateBucketRequest,
   CreateFolderRequest,
   DeleteBucketRequest,
@@ -73,6 +74,11 @@ export class ObjectModule implements IpcModule {
       Channels.bucketsSetVersioning,
       (connectionId: string, bucket: string, enabled: boolean) =>
         this.buckets.setVersioning(connectionId, bucket, enabled)
+    )
+    router.handle(
+      Channels.bucketsSetCors,
+      (connectionId: string, bucket: string, rules: CorsRule[] | null) =>
+        this.buckets.setCors(connectionId, bucket, rules)
     )
     router.handle(Channels.bucketsCreate, (request: CreateBucketRequest) =>
       this.buckets.create(request)

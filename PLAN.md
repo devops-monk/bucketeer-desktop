@@ -77,10 +77,10 @@ without them.
 | Feature | Effort | Notes |
 | --- | --- | --- |
 | Bucket policy viewer and editor | M | Read, and edit behind a deliberate step — **done** |
-| Lifecycle rules | M | Read, then guided editing |
+| Lifecycle rules | M | Read-only view — **done**; editing deliberately deferred |
 | Encryption, versioning, public access | S | Shown in bucket settings — **done** |
-| CORS, logging, requester pays | S | One settings surface |
-| Static website hosting | S | Pairs with default HTTP headers |
+| CORS, logging, requester pays | S | Shown in bucket settings — **done** |
+| Static website hosting | S | Configuration shown — **done** |
 
 ### v0.8 — Scale and the network
 

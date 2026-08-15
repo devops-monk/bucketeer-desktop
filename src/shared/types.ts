@@ -218,6 +218,43 @@ export interface BucketSettings {
   publicAccessDenied: boolean
   encryption: BucketEncryption | null
   encryptionDenied: boolean
+  /** Rules that expire objects or move them between storage classes. */
+  lifecycle: LifecycleRule[] | null
+  lifecycleDenied: boolean
+  /** Which origins may call this bucket from a browser. */
+  cors: CorsRule[] | null
+  corsDenied: boolean
+  /** Where access logs are written, if anywhere. */
+  logging: { targetBucket: string; targetPrefix: string } | null
+  loggingDenied: boolean
+  /** Static site configuration, when the bucket serves one. */
+  website: { indexDocument?: string; errorDocument?: string } | null
+  websiteDenied: boolean
+  /** True when downloads are billed to the caller rather than the owner. */
+  requesterPays: boolean | null
+  requesterPaysDenied: boolean
+}
+
+export interface LifecycleRule {
+  id: string
+  status: string
+  /** Which objects it applies to; empty means the whole bucket. */
+  prefix: string
+  /** Days after creation before the object is deleted, when set. */
+  expirationDays?: number
+  /** Storage class transitions, as days-after-creation to class. */
+  transitions: Array<{ days?: number; storageClass: string }>
+  /** Cleans up parts left behind by interrupted multipart uploads. */
+  abortIncompleteAfterDays?: number
+  noncurrentExpirationDays?: number
+}
+
+export interface CorsRule {
+  allowedOrigins: string[]
+  allowedMethods: string[]
+  allowedHeaders: string[]
+  exposeHeaders: string[]
+  maxAgeSeconds?: number
 }
 
 /** A bucket's default server-side encryption, as reported by S3. */

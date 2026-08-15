@@ -104,6 +104,27 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
         return send(200, xml('<LocationConstraint>eu-west-1</LocationConstraint>'))
       }
 
+      // CORS, lifecycle, logging, website and payment reads and writes
+      if (url.searchParams.has('cors')) {
+        if (request.method === 'PUT') {
+          await readBody()
+          return send(200)
+        }
+        return send(404, xml('<Error><Code>NoSuchCORSConfiguration</Code></Error>'))
+      }
+      if (url.searchParams.has('lifecycle')) {
+        return send(404, xml('<Error><Code>NoSuchLifecycleConfiguration</Code></Error>'))
+      }
+      if (url.searchParams.has('logging')) {
+        return send(200, xml('<BucketLoggingStatus></BucketLoggingStatus>'))
+      }
+      if (url.searchParams.has('website')) {
+        return send(404, xml('<Error><Code>NoSuchWebsiteConfiguration</Code></Error>'))
+      }
+      if (url.searchParams.has('requestPayment')) {
+        return send(200, xml('<RequestPaymentConfiguration><Payer>BucketOwner</Payer></RequestPaymentConfiguration>'))
+      }
+
       // GetBucketPolicy
       if (request.method === 'GET' && url.searchParams.has('policy')) {
         if (options.policyDenied?.includes(bucket)) {

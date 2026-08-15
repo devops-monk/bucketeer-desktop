@@ -1,6 +1,7 @@
 import type {
   BucketSettings,
   CopyResult,
+  CorsRule,
   CreateBucketRequest,
   DeleteBucketRequest,
   SetStorageClassRequest,
@@ -54,6 +55,40 @@ export class BucketService {
     }
 
     await this.storage.putBucketPolicy(await this.repository.get(connectionId), bucket, policy)
+  }
+
+  /**
+   * Replaces the CORS rules.
+   *
+   * Checked here because a browser's report of a failed CORS request never says which
+   * rule was wrong, and an origin with a trailing slash — the commonest mistake — fails
+   * silently in a way that takes an afternoon to find.
+   */
+  async setCors(connectionId: string, bucket: string, rules: CorsRule[] | null): Promise<void> {
+    for (const rule of rules ?? []) {
+      if (rule.allowedOrigins.length === 0 || rule.allowedMethods.length === 0) {
+        throw new BucketeerError(
+          'Every CORS rule needs at least one origin and one method.',
+          'InvalidCors'
+        )
+      }
+      for (const origin of rule.allowedOrigins) {
+        if (origin !== '*' && origin.endsWith('/')) {
+          throw new BucketeerError(
+            `Origins must not end with a slash: "${origin}" will never match a browser request.`,
+            'InvalidCors'
+          )
+        }
+        if (origin !== '*' && !/^https?:\/\//.test(origin)) {
+          throw new BucketeerError(
+            `Origins must include a scheme: write "https://${origin}" rather than "${origin}".`,
+            'InvalidCors'
+          )
+        }
+      }
+    }
+
+    await this.storage.putCors(await this.repository.get(connectionId), bucket, rules)
   }
 
   async setVersioning(connectionId: string, bucket: string, enabled: boolean): Promise<void> {
