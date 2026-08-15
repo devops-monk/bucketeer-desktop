@@ -58,16 +58,25 @@ export function toAppError(error: unknown): AppError {
     const candidate = error as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } }
     const code = candidate.name
     const message = candidate.message ?? 'Something went wrong.'
+    const expired = (code !== undefined && EXPIRED_CODES.has(code)) || /expired/i.test(message)
 
-    if (code && EXPIRED_CODES.has(code)) {
-      return { code, message: explain(code, message), credentialsExpired: true }
-    }
-    return { code, message: explain(code, message) }
+    return { code, message: explain(code, message), ...(expired ? { credentialsExpired: true } : {}) }
   }
   return { message: String(error) }
 }
 
-function explain(code: string | undefined, fallback: string): string {
+/**
+ * Replaces a cryptic AWS message with a plain-language one — but only where the
+ * original is genuinely unhelpful.
+ *
+ * Some SDK messages are already better than anything we would write: an expired SSO
+ * session names the exact command to fix it. Overwriting those with generic advice
+ * turns a solvable problem into a mystery, so any message that already tells the user
+ * what to do is passed through untouched.
+ */
+function explain(code: string | undefined, original: string): string {
+  if (isActionable(original)) return original
+
   switch (code) {
     case 'AccessDenied':
       return 'Access denied. These credentials are valid but lack permission for this operation.'
@@ -86,6 +95,11 @@ function explain(code: string | undefined, fallback: string): string {
     case 'TimeoutError':
       return 'Could not reach the endpoint. Check your network connection and endpoint URL.'
     default:
-      return fallback
+      return original
   }
+}
+
+/** A message that names a command or a concrete next step is worth keeping verbatim. */
+function isActionable(message: string): boolean {
+  return /aws sso login|aws configure|run `|sso session/i.test(message)
 }

@@ -8,6 +8,7 @@ import type {
   ListObjectsRequest,
   PresignRequest,
   RenameRequest,
+  SsoPending,
   Transfer,
   UploadRequest
 } from '@shared/types'
@@ -27,7 +28,13 @@ const api: BucketeerApi = {
     secretsAvailable: () => ipcRenderer.invoke(Channels.connectionsSecretsAvailable)
   },
   credentials: {
-    sharedProfiles: () => ipcRenderer.invoke(Channels.sharedProfilesList)
+    sharedProfiles: () => ipcRenderer.invoke(Channels.sharedProfilesList),
+    ssoLogin: (profileName: string) => ipcRenderer.invoke(Channels.credentialsSsoLogin, profileName),
+    onSsoPending: (listener: (pending: SsoPending) => void) => {
+      const handler = (_event: unknown, pending: SsoPending) => listener(pending)
+      ipcRenderer.on(Channels.ssoPending, handler)
+      return () => ipcRenderer.removeListener(Channels.ssoPending, handler)
+    }
   },
   buckets: {
     list: (connectionId: string) => ipcRenderer.invoke(Channels.bucketsList, connectionId)

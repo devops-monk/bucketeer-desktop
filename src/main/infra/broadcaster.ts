@@ -1,6 +1,6 @@
 import { BrowserWindow } from 'electron'
 import { Channels } from '@shared/ipc'
-import type { Transfer } from '@shared/types'
+import type { SsoPending, Transfer } from '@shared/types'
 import type { EventBroadcaster } from '../core/ports'
 
 /**
@@ -12,10 +12,16 @@ import type { EventBroadcaster } from '../core/ports'
  */
 export class WindowBroadcaster implements EventBroadcaster {
   transfersChanged(transfers: Transfer[]): void {
+    this.send(Channels.transfersChanged, transfers)
+  }
+
+  ssoPending(pending: SsoPending): void {
+    this.send(Channels.ssoPending, pending)
+  }
+
+  private send(channel: string, payload: unknown): void {
     for (const window of BrowserWindow.getAllWindows()) {
-      if (!window.isDestroyed()) {
-        window.webContents.send(Channels.transfersChanged, transfers)
-      }
+      if (!window.isDestroyed()) window.webContents.send(channel, payload)
     }
   }
 }

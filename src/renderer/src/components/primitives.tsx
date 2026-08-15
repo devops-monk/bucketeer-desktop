@@ -90,11 +90,21 @@ export function EmptyState({
 }
 
 /** Failures explain what happened and offer the way out, in the app's own voice. */
-export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: () => void }) {
+export function ErrorNotice({
+  message,
+  onRetry,
+  action
+}: {
+  message: string
+  onRetry?: () => void
+  /** A way to fix the cause, shown beside the retry. */
+  action?: ReactNode
+}) {
   return (
     <div className="m-4 flex items-start gap-3 rounded-[3px] border border-danger/40 bg-danger/5 px-3 py-2.5">
       <span className="mt-px text-danger">⚠</span>
       <p className="flex-1 text-[12px] leading-relaxed text-text">{message}</p>
+      {action}
       {onRetry ? (
         <Button onClick={onRetry} variant="ghost">
           Try again

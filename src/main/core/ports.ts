@@ -8,6 +8,8 @@ import type {
   ListingPage,
   ObjectDetail,
   S3Object,
+  SsoLoginResult,
+  SsoPending,
   Transfer
 } from '@shared/types'
 
@@ -109,9 +111,29 @@ export interface ObjectStorage {
   dispose(): void
 }
 
+/** Where a profile's IAM Identity Center login happens. */
+export interface SsoSettings {
+  startUrl: string
+  region: string
+  /** Present only for profiles using an sso_session block; changes the cache key. */
+  sessionName?: string
+}
+
 /** Reads the AWS shared config files, for the connection editor's profile picker. */
 export interface ProfileDirectory {
   listProfiles(): Promise<string[]>
+  /** Null when the profile is not an IAM Identity Center profile. */
+  readSsoSettings(profileName: string): Promise<SsoSettings | null>
+}
+
+/** Opens a URL in the user's browser. A port so the login flow stays testable. */
+export interface UrlOpener {
+  open(url: string): Promise<void>
+}
+
+/** Signs a profile in to IAM Identity Center. */
+export interface SsoAuthenticator {
+  login(profileName: string, onPending: (pending: SsoPending) => void): Promise<SsoLoginResult>
 }
 
 export interface IdGenerator {
@@ -125,4 +147,5 @@ export interface Clock {
 /** Pushes state from the main process to every open window. */
 export interface EventBroadcaster {
   transfersChanged(transfers: Transfer[]): void
+  ssoPending(pending: SsoPending): void
 }

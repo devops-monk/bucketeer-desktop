@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ConnectionSummary, CredentialKind, CredentialSource } from '@shared/types'
 import { api, messageFor } from '../lib/api'
 import { useSession } from '../store/session'
+import { SsoSignIn } from './SsoSignIn'
 import { Button, Field, Input, Select } from './primitives'
 
 /**
@@ -41,14 +42,16 @@ export function ConnectionEditor({ connection, onClose }: Props) {
   const [kmsKeyId, setKmsKeyId] = useState(connection?.kmsKeyId ?? '')
   const [kind, setKind] = useState<CredentialKind>(connection?.credentials.kind ?? 'shared-profile')
 
-  const [profileName, setProfileName] = useState('')
+  // Seeded from what was saved. Secrets are absent by design, so a key-based
+  // connection starts blank and the form says why.
+  const [profileName, setProfileName] = useState(connection?.credentials.profileName ?? '')
   const [accessKeyId, setAccessKeyId] = useState('')
   const [secretAccessKey, setSecretAccessKey] = useState('')
   const [sessionToken, setSessionToken] = useState('')
-  const [roleArn, setRoleArn] = useState('')
-  const [mfaSerial, setMfaSerial] = useState('')
-  const [externalId, setExternalId] = useState('')
-  const [baseProfile, setBaseProfile] = useState('')
+  const [roleArn, setRoleArn] = useState(connection?.credentials.roleArn ?? '')
+  const [mfaSerial, setMfaSerial] = useState(connection?.credentials.mfaSerial ?? '')
+  const [externalId, setExternalId] = useState(connection?.credentials.externalId ?? '')
+  const [baseProfile, setBaseProfile] = useState(connection?.credentials.baseProfileName ?? '')
 
   const [profiles, setProfiles] = useState<string[]>([])
   const [secretsAvailable, setSecretsAvailable] = useState(true)
@@ -65,8 +68,10 @@ export function ConnectionEditor({ connection, onClose }: Props) {
         ])
         setProfiles(found)
         setSecretsAvailable(available)
+        // Never overwrite a saved selection: defaulting to the first profile is only
+        // right for a brand new connection.
         setProfileName((current) => current || (found[0] ?? ''))
-        setBaseProfile((current) => current || (found[0] ?? ''))
+        if (!connection) setBaseProfile((current) => current || (found[0] ?? ''))
       } catch (failure) {
         setError(messageFor(failure))
       }
@@ -223,9 +228,15 @@ export function ConnectionEditor({ connection, onClose }: Props) {
                     value={profileName}
                     onChange={(event) => setProfileName(event.target.value)}
                   >
-                    {profiles.map((value) => (
+                    {/* A saved profile that no longer exists in the config must still
+                        show, or the form would silently switch it to another account. */}
+                    {(profiles.includes(profileName) || !profileName
+                      ? profiles
+                      : [profileName, ...profiles]
+                    ).map((value) => (
                       <option key={value} value={value}>
                         {value}
+                        {profiles.includes(value) ? '' : ' (not in ~/.aws/config)'}
                       </option>
                     ))}
                   </Select>
@@ -237,6 +248,10 @@ export function ConnectionEditor({ connection, onClose }: Props) {
                   />
                 )}
               </Field>
+            ) : null}
+
+            {kind === 'shared-profile' && profileName ? (
+              <SsoSignIn profileName={profileName} onSignedIn={() => setError(null)} />
             ) : null}
 
             {kind === 'access-key' ? (

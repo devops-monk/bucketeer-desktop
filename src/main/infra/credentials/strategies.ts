@@ -6,6 +6,7 @@ import {
 } from '@aws-sdk/credential-providers'
 import type { AwsCredentialIdentityProvider } from '@aws-sdk/types'
 import type { CredentialSource } from '@shared/types'
+import { BucketeerError } from '../../core/errors'
 import type { CredentialResolver, CredentialStrategy } from '../../core/ports'
 
 /**
@@ -43,7 +44,25 @@ export class SharedProfileStrategy implements CredentialStrategy<'shared-profile
   readonly kind = 'shared-profile' as const
 
   create(source: Extract<CredentialSource, { kind: 'shared-profile' }>): AwsCredentialIdentityProvider {
-    return fromIni({ profile: source.profileName })
+    const provider = fromIni({ profile: source.profileName })
+
+    // The SDK's own message says to "run aws sso login with the corresponding profile",
+    // which is no help to someone with four profiles configured. Naming the profile
+    // turns the error into a command the user can paste.
+    return async (...args) => {
+      try {
+        return await provider(...args)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        if (/sso/i.test(message) && /expired|login/i.test(message)) {
+          throw new BucketeerError(
+            `The SSO session for profile "${source.profileName}" has expired. Run: aws sso login --profile ${source.profileName}`,
+            'CredentialsProviderError'
+          )
+        }
+        throw error
+      }
+    }
   }
 
   describe(source: Extract<CredentialSource, { kind: 'shared-profile' }>): string {

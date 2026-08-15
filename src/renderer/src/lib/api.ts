@@ -36,7 +36,9 @@ export const api = {
     secretsAvailable: () => unwrap(bridge.connections.secretsAvailable())
   },
   credentials: {
-    sharedProfiles: () => unwrap(bridge.credentials.sharedProfiles())
+    sharedProfiles: () => unwrap(bridge.credentials.sharedProfiles()),
+    ssoLogin: (profileName: string) => unwrap(bridge.credentials.ssoLogin(profileName)),
+    onSsoPending: bridge.credentials.onSsoPending
   },
   buckets: {
     list: (connectionId: string) => unwrap(bridge.buckets.list(connectionId))

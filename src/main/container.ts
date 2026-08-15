@@ -8,9 +8,11 @@ import type { Clock, IdGenerator, ObjectStorage } from './core/ports'
 import { FileConnectionRepository } from './infra/connection-repository'
 import { SharedConfigProfileDirectory } from './infra/credentials/profile-directory'
 import { createCredentialResolver } from './infra/credentials/resolver'
+import { DeviceCodeSsoAuthenticator } from './infra/credentials/sso-login'
 import { S3ClientFactory } from './infra/s3/client-factory'
 import { S3ObjectStorage } from './infra/s3/s3-object-storage'
 import { WindowBroadcaster } from './infra/broadcaster'
+import { ShellUrlOpener } from './infra/url-opener'
 import { SafeStorageVault } from './infra/vault'
 import { BrowsingModule } from './ipc/browsing-module'
 import { ConnectionModule } from './ipc/connection-module'
@@ -42,12 +44,16 @@ export function createContainer(): Container {
   const credentials = createCredentialResolver()
   const storage = new S3ObjectStorage(new S3ClientFactory(credentials), credentials)
   const profiles = new SharedConfigProfileDirectory()
+  const broadcaster = new WindowBroadcaster()
+  const sso = new DeviceCodeSsoAuthenticator(profiles, new ShellUrlOpener())
 
   const connections = new ConnectionService(
     repository,
     credentials,
     storage,
     profiles,
+    sso,
+    broadcaster,
     uuidGenerator,
     systemClock
   )
@@ -56,7 +62,7 @@ export function createContainer(): Container {
   const transfers = new TransferService(
     repository,
     storage,
-    new WindowBroadcaster(),
+    broadcaster,
     uuidGenerator,
     systemClock
   )

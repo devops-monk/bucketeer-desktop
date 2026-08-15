@@ -12,6 +12,8 @@ import type {
   PresignRequest,
   RenameRequest,
   Result,
+  SsoLoginResult,
+  SsoPending,
   Transfer,
   UploadRequest
 } from './types'
@@ -24,6 +26,9 @@ export const Channels = {
   connectionsTest: 'connections:test',
   connectionsSecretsAvailable: 'connections:secrets-available',
   sharedProfilesList: 'credentials:shared-profiles',
+  credentialsSsoLogin: 'credentials:sso-login',
+  /** Main → renderer: a login is waiting for browser approval. */
+  ssoPending: 'credentials:sso-pending',
   bucketsList: 'buckets:list',
   objectsList: 'objects:list',
   objectHead: 'objects:head',
@@ -60,6 +65,13 @@ export interface BucketeerApi {
   credentials: {
     /** Profile names found in ~/.aws/config and ~/.aws/credentials. */
     sharedProfiles(): Promise<Result<string[]>>
+    /**
+     * Signs a profile in to IAM Identity Center by opening the browser. Resolves once
+     * the user has approved, or rejects on timeout.
+     */
+    ssoLogin(profileName: string): Promise<Result<SsoLoginResult>>
+    /** Fires while a login waits for approval, carrying the code to display. */
+    onSsoPending(listener: (pending: SsoPending) => void): () => void
   }
   buckets: {
     list(connectionId: string): Promise<Result<Bucket[]>>

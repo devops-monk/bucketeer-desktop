@@ -13,5 +13,8 @@ export class ConnectionModule implements IpcModule {
     router.handle(Channels.connectionsTest, (id: string) => this.service.test(id))
     router.handle(Channels.connectionsSecretsAvailable, () => this.service.secretsAvailable())
     router.handle(Channels.sharedProfilesList, () => this.service.sharedProfiles())
+    router.handle(Channels.credentialsSsoLogin, (profileName: string) =>
+      this.service.ssoLogin(profileName)
+    )
   }
 }

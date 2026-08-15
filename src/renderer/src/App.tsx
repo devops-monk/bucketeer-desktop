@@ -9,6 +9,7 @@ import { ObjectTable } from './components/ObjectTable'
 import { PathBar } from './components/PathBar'
 import { Toolbar } from './components/Toolbar'
 import { TransferPanel } from './components/TransferPanel'
+import { SsoSignIn } from './components/SsoSignIn'
 import { Button, EmptyState, ErrorNotice, LoadingBar } from './components/primitives'
 import { api, messageFor } from './lib/api'
 import { useSession } from './store/session'
@@ -93,6 +94,12 @@ export function App() {
     setEditorOpen(true)
   }
 
+  // Sign-in is offered only when the failure is an expired session on a profile-based
+  // connection — the one case where a login actually fixes it.
+  const activeConnection = connections.find((candidate) => candidate.id === activeId)
+  const expiredProfile =
+    error && /sso|expired|sign in/i.test(error) ? activeConnection?.credentials.profileName : undefined
+
   const canDrop = Boolean(location)
 
   return (
@@ -139,6 +146,18 @@ export function App() {
                 if (location) void refresh()
                 else if (activeId) void openConnection(activeId)
               }}
+              /* An expired SSO session is fixable right here rather than in a terminal. */
+              action={
+                expiredProfile ? (
+                  <SsoSignIn
+                    profileName={expiredProfile}
+                    variant="primary"
+                    onSignedIn={() => {
+                      if (activeId) void openConnection(activeId)
+                    }}
+                  />
+                ) : undefined
+              }
             />
           ) : null}
 

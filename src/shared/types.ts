@@ -42,9 +42,29 @@ export interface Connection {
   createdAt: string
 }
 
+/**
+ * The non-secret parts of a credential source.
+ *
+ * Sent to the renderer so the connection editor can show what was actually saved.
+ * Everything here is safe to display; secrets are never included, which is why editing
+ * a key-based connection has to ask for the key again.
+ */
+export interface CredentialFacts {
+  kind: CredentialKind
+  /** Human-readable summary, e.g. "Profile non-prd-fs". */
+  label: string
+  profileName?: string
+  roleArn?: string
+  sessionName?: string
+  externalId?: string
+  mfaSerial?: string
+  /** For assume-role: which profile is used to call sts:AssumeRole. */
+  baseProfileName?: string
+}
+
 /** A connection minus its secrets, safe to hold in the renderer. */
 export type ConnectionSummary = Omit<Connection, 'credentials'> & {
-  credentials: { kind: CredentialKind; label: string }
+  credentials: CredentialFacts
 }
 
 export interface Bucket {
@@ -97,6 +117,19 @@ export interface ObjectDetail {
   serverSideEncryption?: string
   kmsKeyId?: string
   metadata?: Record<string, string>
+}
+
+/** Where a profile signs in, and how its token cache is keyed. */
+export interface SsoPending {
+  profileName: string
+  /** Code the user confirms in the browser, shown in case the browser did not open. */
+  userCode: string
+  verificationUri: string
+}
+
+export interface SsoLoginResult {
+  profileName: string
+  expiresAt: string
 }
 
 export type TransferKind = 'upload' | 'download'
