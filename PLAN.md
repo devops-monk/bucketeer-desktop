@@ -14,7 +14,12 @@ endpoint rather than only typechecked.
 
 - **Credentials** — SSO, shared profiles, `credential_process`, assume-role with MFA and
   external ID, access keys, temporary session keys, environment, instance roles
-- **In-app SSO sign-in** — device authorization flow, writing the AWS CLI's own token cache
+- **In-app SSO sign-in** — runs the user's own `aws sso login` where the CLI exists, so the
+  browser asks them to authorise a client they already trust; falls back to a built-in
+  device authorization flow otherwise. Either way the token goes to the AWS CLI's own
+  shared cache, so signing in here signs the CLI in too, and signing in there signs the app
+  in. A failed sign-in says which of "no session", "expired session" and "role not
+  assigned" actually happened, since the fix differs for each
 - **S3-compatible endpoints** — MinIO, Cloudflare R2, Wasabi, Backblaze
 - **Browsing** — buckets and prefixes, filtering with match highlighting, column sorting
 - **Upload** — multi-select, whole folders, drag and drop, multipart above 8 MB

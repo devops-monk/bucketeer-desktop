@@ -64,12 +64,21 @@ export function SsoSignIn({
       {busy && pending ? (
         <div className="rounded-md border border-line bg-sunken px-3 py-2.5">
           <p className="text-[11.5px] leading-relaxed text-muted">
-            Approve the sign-in in your browser. Confirm this code matches:
+            {pending.userCode
+              ? 'Approve the sign-in in your browser. Confirm this code matches:'
+              : 'Approve the sign-in in your browser.'}
           </p>
-          <p className="tabular mt-1 text-[15px] tracking-[0.2em] text-accent-ink">
-            {pending.userCode}
-          </p>
-          <p className="mt-1 text-[11px] break-all text-faint">{pending.verificationUri}</p>
+          {/* Signing in through the AWS CLI prints the URL before the code, and some
+              versions never print a code at all. Showing the label above an empty gap
+              reads as a code that failed to load, so both are drawn only once known. */}
+          {pending.userCode ? (
+            <p className="tabular mt-1 text-[15px] tracking-[0.2em] text-accent-ink">
+              {pending.userCode}
+            </p>
+          ) : null}
+          {pending.verificationUri ? (
+            <p className="mt-1 text-[11px] break-all text-faint">{pending.verificationUri}</p>
+          ) : null}
         </div>
       ) : null}
 

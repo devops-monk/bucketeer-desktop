@@ -74,7 +74,16 @@ export class ConnectionService {
     this.storage.forget(id)
   }
 
+  /**
+   * Tests a connection, from scratch.
+   *
+   * The cached client is dropped first, so a session signed in elsewhere — `aws sso
+   * login` in a terminal while the app sat open — is picked up. Reusing the client here
+   * meant testing a connection could keep reporting a failure the user had already
+   * fixed, which is the opposite of what the button is for.
+   */
   async test(id: string): Promise<{ accountId?: string; buckets: number }> {
+    this.storage.forget(id)
     return this.storage.probe(await this.repository.get(id))
   }
 

@@ -12,6 +12,7 @@ import { FileConnectionRepository } from './infra/connection-repository'
 import { SharedConfigProfileDirectory } from './infra/credentials/profile-directory'
 import { KmsKeyDirectory } from './infra/credentials/key-directory'
 import { createCredentialResolver } from './infra/credentials/resolver'
+import { AwsCliSsoAuthenticator, SsoLoginChain } from './infra/credentials/cli-sso-login'
 import { DeviceCodeSsoAuthenticator } from './infra/credentials/sso-login'
 import { S3ClientFactory } from './infra/s3/client-factory'
 import { S3ObjectStorage } from './infra/s3/s3-object-storage'
@@ -52,16 +53,23 @@ const uuidGenerator: IdGenerator = { next: () => randomUUID() }
 export function createContainer(): Container {
   const vault = new SafeStorageVault()
   const repository = new FileConnectionRepository(vault, app.getPath('userData'))
-  const credentials = createCredentialResolver()
+  const profiles = new SharedConfigProfileDirectory()
+  // The directory is handed to the resolver so a failed sign-in can say which of
+  // "no session", "expired session" or "role not assigned" actually happened.
+  const credentials = createCredentialResolver(profiles)
   const clientFactory = new S3ClientFactory(credentials)
   const storage = new S3ObjectStorage(clientFactory, credentials)
   const settings = new SettingsStore()
-  const profiles = new SharedConfigProfileDirectory()
   // Wrapping rather than sitting beside it: one path for "the queue changed", so the
   // window, the tray and the taskbar cannot drift apart.
   const system = new SystemIntegration(new WindowBroadcaster())
   const broadcaster = system
-  const sso = new DeviceCodeSsoAuthenticator(profiles, new ShellUrlOpener())
+  // The user's own `aws sso login` where it exists, so the browser asks them to
+  // authorise the AWS CLI rather than an application they have never heard of.
+  const sso = new SsoLoginChain(
+    new AwsCliSsoAuthenticator(profiles),
+    new DeviceCodeSsoAuthenticator(profiles, new ShellUrlOpener())
+  )
 
   const connections = new ConnectionService(
     repository,

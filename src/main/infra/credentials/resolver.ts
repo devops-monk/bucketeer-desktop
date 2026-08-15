@@ -1,7 +1,7 @@
 import type { AwsCredentialIdentityProvider } from '@aws-sdk/types'
 import type { CredentialKind, CredentialSource } from '@shared/types'
 import { BucketeerError } from '../../core/errors'
-import type { CredentialResolver, CredentialStrategy } from '../../core/ports'
+import type { CredentialResolver, CredentialStrategy, ProfileDirectory } from '../../core/ports'
 import {
   AccessKeyStrategy,
   AssumeRoleStrategy,
@@ -44,12 +44,17 @@ export class StrategyCredentialResolver implements CredentialResolver {
   }
 }
 
-/** Builds the resolver with every strategy Bucketeer ships with. */
-export function createCredentialResolver(): CredentialResolver {
+/**
+ * Builds the resolver with every strategy Bucketeer ships with.
+ *
+ * The profile directory is optional so tests can build a resolver with nothing behind
+ * it; supplying one only makes credential failures better explained.
+ */
+export function createCredentialResolver(profiles?: ProfileDirectory): CredentialResolver {
   const resolver = new StrategyCredentialResolver()
   return resolver
     .register(new AccessKeyStrategy())
-    .register(new SharedProfileStrategy())
+    .register(new SharedProfileStrategy(profiles))
     .register(new EnvironmentStrategy())
     .register(new DefaultChainStrategy())
     // Assume-role composes with the others, so it takes the resolver it lives in.
