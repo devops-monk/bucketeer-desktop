@@ -1,8 +1,8 @@
 name: CI
 
+# Pull requests only. Pushes to main are covered by the release workflow, which
+# typechecks before it packages, so running both would verify the same commit twice.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
