@@ -17,6 +17,8 @@ interface TransferState {
   subscribe: () => () => void
   setPanelOpen: (open: boolean) => void
   cancel: (id: string) => Promise<void>
+  pause: (id: string) => Promise<void>
+  resume: (id: string) => Promise<void>
   clearFinished: () => Promise<void>
 }
 
@@ -43,6 +45,14 @@ export const useTransfers = create<TransferState>((set, get) => ({
     await api.transfers.cancel(id)
   },
 
+  async pause(id) {
+    await api.transfers.pause(id)
+  },
+
+  async resume(id) {
+    await api.transfers.resume(id)
+  },
+
   async clearFinished() {
     await api.transfers.clearFinished()
   }
@@ -50,6 +60,11 @@ export const useTransfers = create<TransferState>((set, get) => ({
 
 export function isActive(transfer: Transfer): boolean {
   return transfer.status === 'queued' || transfer.status === 'running'
+}
+
+/** Paused counts as unfinished: it is waiting on the user, not on the network. */
+export function isUnfinished(transfer: Transfer): boolean {
+  return isActive(transfer) || transfer.status === 'paused'
 }
 
 /** Aggregate progress across everything still moving, for the manifest strip. */

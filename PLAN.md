@@ -47,7 +47,7 @@ without them.
 | --- | --- | --- |
 | Test suite in CI | S | Vitest against a local S3 stub, or LocalStack — **done** |
 | Virtualized object list | S | **done** |
-| Pause and resume transfers | L | Persist UploadId and completed parts across restarts |
+| Pause and resume uploads | L | Hand-rolled multipart, resuming from parts S3 holds — **done** |
 | Integrity checking | S | SDK flexible checksums, CRC32C — **done** |
 | Auto-update, Windows and Linux | M | macOS is blocked, see below |
 
@@ -154,6 +154,8 @@ nothing to a build that opens on a double-click. The release workflow already pa
 five secrets it needs, so nothing in CI has to change.
 
 ## Known gaps
-- Uploads and downloads do not resume after a restart.
+- Uploads can be paused and resumed within a session; resuming after the app is closed
+  needs the multipart state persisting to disk, which is not built yet.
+- Downloads restart rather than resuming; ranged requests would fix it.
 - Sync is one-way, local to remote. Remote to local is not built.
 - Everything is verified against a local S3 stub; nothing has been run against real AWS.

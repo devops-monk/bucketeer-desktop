@@ -1,4 +1,4 @@
-import { createReadStream, createWriteStream } from 'node:fs'
+import { createWriteStream } from 'node:fs'
 import { mkdir, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { Readable } from 'node:stream'
@@ -34,7 +34,6 @@ import {
   PutObjectCommand
 } from '@aws-sdk/client-s3'
 import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts'
-import { Upload } from '@aws-sdk/lib-storage'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import type {
   Bucket,
@@ -56,6 +55,7 @@ import type {
 } from '../../core/ports'
 import { RateLimiter, throttle } from '../../app/rate-limiter'
 import type { S3ClientFactory } from './client-factory'
+import { ResumableUpload, type ResumeState } from './resumable-upload'
 import { cleanETag, isFolderMarker, toObject, toPrefix } from './mappers'
 
 const PAGE_SIZE = 1000
@@ -63,15 +63,6 @@ const PAGE_SIZE = 1000
 const DELETE_BATCH = 1000
 /** 8 MB parts: large enough to keep request overhead low, small enough to retry cheaply. */
 const DEFAULT_PART_SIZE = 8 * 1024 * 1024
-/**
- * CRC32C on every upload and download.
- *
- * S3 verifies the checksum server-side and rejects a part that does not match, which
- * turns a silently corrupted transfer into a failed one. CRC32C is the cheapest of the
- * algorithms the SDK offers and is what AWS uses by default for multipart.
- */
-const CHECKSUM_ALGORITHM = 'CRC32C' as const
-
 /** ObjectStorage backed by the AWS SDK. The only place S3 commands are issued. */
 export class S3ObjectStorage implements ObjectStorage {
   /** bucket → its default encryption, including a remembered "none". */
@@ -255,8 +246,10 @@ export class S3ObjectStorage implements ObjectStorage {
   }
 
   /**
-   * Uploads a file with lib-storage, which switches to multipart automatically above the
-   * part size and retries individual parts rather than the whole file.
+   * Uploads a file, in parts large enough to resume.
+   *
+   * Hand-rolled multipart rather than lib-storage, which cannot adopt an existing
+   * UploadId — so with it, an interrupted 10 GB upload could only start again from zero.
    */
   async putObject(
     connection: Connection,
@@ -267,46 +260,21 @@ export class S3ObjectStorage implements ObjectStorage {
   ): Promise<void> {
     const client = await this.factory.forBucket(connection, bucket)
     const { size } = await stat(localPath)
-    const file = createReadStream(localPath)
-    // Throttling the source rather than the request: back-pressure then stops the file
-    // being read, instead of buffering it in memory ahead of a slow socket.
-    const body = this.limiter.enabled ? file.pipe(throttle(this.limiter)) : file
 
-    const upload = new Upload({
+    const uploader = new ResumableUpload(
       client,
-      params: {
-        Bucket: bucket,
-        Key: key,
-        Body: body,
-        ContentType: options.contentType,
-        ...(options.storageClass ? { StorageClass: options.storageClass as never } : {}),
-        // Verified by S3 on arrival: a corrupted upload fails rather than lands.
-        ChecksumAlgorithm: CHECKSUM_ALGORITHM,
-        // Only set encryption headers when a key was given; sending them empty makes
-        // S3 reject the request rather than fall back to the bucket default.
-        ...(options.kmsKeyId
-          ? { ServerSideEncryption: 'aws:kms' as const, SSEKMSKeyId: options.kmsKeyId }
-          : {})
-      },
-      queueSize: 4,
-      partSize: this.partSize,
-      leavePartsOnError: false
-    })
+      (transferred) => options.onProgress?.(transferred, size),
+      (state) => options.onResumeState?.(state)
+    )
 
-    // httpUploadProgress reports cumulative bytes; total is known from the local file.
-    upload.on('httpUploadProgress', (progress) => {
-      options.onProgress?.(progress.loaded ?? 0, size)
-    })
-
-    const abort = () => void upload.abort()
-    options.signal?.addEventListener('abort', abort, { once: true })
-
-    try {
-      await upload.done()
-    } finally {
-      options.signal?.removeEventListener('abort', abort)
-      file.destroy()
-    }
+    await uploader.upload(
+      bucket,
+      key,
+      localPath,
+      this.partSize,
+      options,
+      options.resume as ResumeState | undefined
+    )
   }
 
   /**

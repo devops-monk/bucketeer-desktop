@@ -32,6 +32,10 @@ const PROGRESS_INTERVAL_MS = 120
 export class TransferService {
   private readonly transfers = new Map<string, Transfer>()
   private readonly controllers = new Map<string, AbortController>()
+  /** Multipart state per transfer, so a paused upload can pick up where it stopped. */
+  private readonly resumeState = new Map<string, unknown>()
+  /** How to start each upload again, kept for as long as it might be resumed. */
+  private readonly resumers = new Map<string, () => void>()
   private queue = new TaskQueue(DEFAULT_CONCURRENCY)
   /** Coalesces bursts of progress updates into one broadcast per tick. */
   private flushHandle: NodeJS.Timeout | null = null
@@ -92,21 +96,71 @@ export class TransferService {
         size: file.size,
         transferred: 0,
         status: 'queued',
-        kmsKeyId
+        kmsKeyId,
+        // Only multipart uploads have anything to resume; a small file simply restarts.
+        resumable: file.size > 8 * 1024 * 1024
       }
       this.track(transfer)
 
+      this.startUpload(transfer, connection, kmsKeyId)
+    }
+
+    this.flush()
+    return files.length
+  }
+
+  /**
+   * Runs an upload, and remembers how to run it again from where it stopped.
+   *
+   * The closure is kept rather than its arguments, because resuming has to reconstruct
+   * exactly the same call — including the key that encrypts it.
+   */
+  private startUpload(transfer: Transfer, connection: Connection, kmsKeyId?: string): void {
+    const run = (): void => {
       void this.execute(transfer, (controller) =>
-        this.storage.putObject(connection, request.bucket, file.key, file.localPath, {
+        this.storage.putObject(connection, transfer.bucket, transfer.key, transfer.localPath, {
           kmsKeyId,
           signal: controller.signal,
+          resume: this.resumeState.get(transfer.id),
+          onResumeState: (state) => {
+            if (state === null) this.resumeState.delete(transfer.id)
+            else this.resumeState.set(transfer.id, state)
+          },
           onProgress: (transferred, total) => this.progress(transfer.id, transferred, total)
         })
       )
     }
 
-    this.flush()
-    return files.length
+    this.resumers.set(transfer.id, run)
+    run()
+  }
+
+  /**
+   * Stops an upload without discarding what has already been sent.
+   *
+   * Unlike cancelling, the multipart upload is left alive on S3, so resuming continues
+   * from the last completed part rather than from zero.
+   */
+  pause(id: string): void {
+    const transfer = this.transfers.get(id)
+    if (!transfer || transfer.kind !== 'upload') return
+    if (transfer.status !== 'running' && transfer.status !== 'queued') return
+
+    // Order matters: the status must say paused before the abort lands, or execute()
+    // records it as a cancellation.
+    this.update(id, { status: 'paused' })
+    this.controllers.get(id)?.abort()
+  }
+
+  resume(id: string): void {
+    const transfer = this.transfers.get(id)
+    if (!transfer || transfer.status !== 'paused') return
+
+    const run = this.resumers.get(id)
+    if (!run) return
+
+    this.update(id, { status: 'queued' })
+    run()
   }
 
   /**
@@ -136,7 +190,9 @@ export class TransferService {
         size: file.size,
         transferred: 0,
         status: 'queued',
-        kmsKeyId
+        kmsKeyId,
+        // Only multipart uploads have anything to resume; a small file simply restarts.
+        resumable: file.size > 8 * 1024 * 1024
       }
       this.track(transfer)
 
@@ -241,9 +297,13 @@ export class TransferService {
   /** Clears finished rows so the panel shows only what is still in flight. */
   clearFinished(): void {
     for (const [id, transfer] of this.transfers) {
+      // A paused transfer is unfinished business, not clutter.
+      if (transfer.status === 'paused') continue
       if (transfer.status !== 'queued' && transfer.status !== 'running') {
         this.transfers.delete(id)
         this.controllers.delete(id)
+        this.resumeState.delete(id)
+        this.resumers.delete(id)
       }
     }
     this.flush()
@@ -268,8 +328,9 @@ export class TransferService {
     this.controllers.set(transfer.id, controller)
 
     await this.queue.run(async () => {
-      // The user may have cancelled while this sat in the queue.
-      if (this.transfers.get(transfer.id)?.status === 'cancelled') return
+      // The user may have cancelled or paused while this sat in the queue.
+      const waiting = this.transfers.get(transfer.id)?.status
+      if (waiting === 'cancelled' || waiting === 'paused') return
 
       this.update(transfer.id, { status: 'running', startedAt: this.clock.nowIso() })
       try {
@@ -280,9 +341,12 @@ export class TransferService {
           transferred: this.transfers.get(transfer.id)?.size ?? 0
         })
       } catch (error) {
-        // An abort surfaces as an error; it is a cancellation, not a failure.
+        // An abort surfaces as an error. It means cancelled, unless the user paused —
+        // in which case the status is already right and must not be overwritten.
         if (controller.signal.aborted) {
-          this.update(transfer.id, { status: 'cancelled', finishedAt: this.clock.nowIso() })
+          if (this.transfers.get(transfer.id)?.status !== 'paused') {
+            this.update(transfer.id, { status: 'cancelled', finishedAt: this.clock.nowIso() })
+          }
           return
         }
         this.update(transfer.id, {

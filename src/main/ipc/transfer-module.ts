@@ -19,6 +19,8 @@ export class TransferModule implements IpcModule {
     )
     router.handle(Channels.transfersList, () => this.service.list())
     router.handle(Channels.transfersCancel, (id: string) => this.service.cancel(id))
+    router.handle(Channels.transfersPause, (id: string) => this.service.pause(id))
+    router.handle(Channels.transfersResume, (id: string) => this.service.resume(id))
     router.handle(Channels.transfersClearFinished, () => this.service.clearFinished())
     router.handle(Channels.syncAnalyze, (request: SyncRequest) => this.sync.analyze(request))
     router.handle(Channels.syncApply, (request: SyncRequest, plan: SyncPlan) =>

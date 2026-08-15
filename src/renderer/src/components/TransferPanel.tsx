@@ -18,6 +18,8 @@ export function TransferPanel() {
   const open = useTransfers((state) => state.panelOpen)
   const setOpen = useTransfers((state) => state.setPanelOpen)
   const cancel = useTransfers((state) => state.cancel)
+  const pause = useTransfers((state) => state.pause)
+  const resume = useTransfers((state) => state.resume)
   const clearFinished = useTransfers((state) => state.clearFinished)
 
   if (!open || transfers.length === 0) return null
@@ -88,6 +90,8 @@ export function TransferPanel() {
             key={transfer.id}
             transfer={transfer}
             onCancel={() => void cancel(transfer.id)}
+            onPause={() => void pause(transfer.id)}
+            onResume={() => void resume(transfer.id)}
           />
         ))}
       </ul>
@@ -95,7 +99,17 @@ export function TransferPanel() {
   )
 }
 
-function TransferRow({ transfer, onCancel }: { transfer: Transfer; onCancel: () => void }) {
+function TransferRow({
+  transfer,
+  onCancel,
+  onPause,
+  onResume
+}: {
+  transfer: Transfer
+  onCancel: () => void
+  onPause: () => void
+  onResume: () => void
+}) {
   // An unknown total shows an indeterminate bar rather than a lying 0%.
   const percent =
     transfer.size > 0 ? Math.min(100, (transfer.transferred / transfer.size) * 100) : null
@@ -148,6 +162,22 @@ function TransferRow({ transfer, onCancel }: { transfer: Transfer; onCancel: () 
         ) : null}
       </div>
 
+      {transfer.status === 'paused' ? (
+        <Tooltip label="Continue from the last completed part">
+          <Button size="sm" variant="secondary" onClick={onResume}>
+            Resume
+          </Button>
+        </Tooltip>
+      ) : null}
+
+      {running && transfer.kind === 'upload' && transfer.resumable ? (
+        <Tooltip label="Stop for now, keeping what has already been sent">
+          <Button size="sm" onClick={onPause}>
+            Pause
+          </Button>
+        </Tooltip>
+      ) : null}
+
       {running ? (
         <Button onClick={onCancel} size="sm" aria-label={`Cancel ${transfer.name}`}>
           Cancel
@@ -197,6 +227,18 @@ function StatusMark({ transfer }: { transfer: Transfer }) {
       </Tooltip>
     )
   }
+  if (transfer.status === 'paused') {
+    return (
+      <Tooltip label={label}>
+        <span className={`${shell} border-accent/40 bg-accent-soft/40 text-accent-ink`}>
+          <svg viewBox="0 0 12 12" width="10" height="10" fill="currentColor" aria-hidden>
+            <rect x="3" y="2.8" width="2" height="6.4" rx="0.6" />
+            <rect x="7" y="2.8" width="2" height="6.4" rx="0.6" />
+          </svg>
+        </span>
+      </Tooltip>
+    )
+  }
   if (transfer.status === 'cancelled') {
     return (
       <Tooltip label={label}>
@@ -235,6 +277,8 @@ function describeStatus(transfer: Transfer): string {
       return `${direction} waiting its turn`
     case 'running':
       return `${direction} in progress`
+    case 'paused':
+      return `${direction} paused — the parts already sent are kept`
     case 'done':
       return `${direction} complete`
     case 'cancelled':
@@ -254,6 +298,10 @@ function status(transfer: Transfer): string {
         : formatBytes(transfer.transferred)
     case 'done':
       return formatBytes(transfer.size)
+    case 'paused':
+      return transfer.size > 0
+        ? `Paused at ${formatBytes(transfer.transferred)} of ${formatBytes(transfer.size)}`
+        : 'Paused'
     case 'cancelled':
       return 'Cancelled'
     case 'failed':

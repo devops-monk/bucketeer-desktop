@@ -279,7 +279,13 @@ export interface BucketEncryption {
 
 export type TransferKind = 'upload' | 'download'
 
-export type TransferStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled'
+export type TransferStatus =
+  | 'queued'
+  | 'running'
+  | 'paused'
+  | 'done'
+  | 'failed'
+  | 'cancelled'
 
 /** One file moving in one direction. The unit the transfer queue schedules and reports. */
 export interface Transfer {
@@ -299,6 +305,8 @@ export interface Transfer {
   finishedAt?: string
   /** KMS key this upload is encrypted with, if any. */
   kmsKeyId?: string
+  /** True when this upload can be paused and picked up again where it stopped. */
+  resumable?: boolean
 }
 
 /**

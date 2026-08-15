@@ -69,6 +69,10 @@ export interface UploadOptions {
   storageClass?: string
   onProgress?: ProgressReporter
   signal?: AbortSignal
+  /** Called as multipart state changes, so an interrupted upload can be resumed. */
+  onResumeState?: (state: unknown | null) => void
+  /** State from a previous attempt at this same file. */
+  resume?: unknown
 }
 
 export interface DownloadOptions {

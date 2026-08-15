@@ -100,6 +100,8 @@ const api: BucketeerApi = {
     download: (request: DownloadRequest) => ipcRenderer.invoke(Channels.transfersDownload, request),
     list: () => ipcRenderer.invoke(Channels.transfersList),
     cancel: (id: string) => ipcRenderer.invoke(Channels.transfersCancel, id),
+    pause: (id: string) => ipcRenderer.invoke(Channels.transfersPause, id),
+    resume: (id: string) => ipcRenderer.invoke(Channels.transfersResume, id),
     clearFinished: () => ipcRenderer.invoke(Channels.transfersClearFinished),
     onChanged: (listener: (transfers: Transfer[]) => void) => {
       // The event object is deliberately not passed through: it exposes the sender,

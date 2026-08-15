@@ -30,6 +30,8 @@ export interface FakeS3Options {
 
 export interface FakeS3 {
   url: string
+  /** Multipart uploads still in progress, for asserting that a pause kept its parts. */
+  uploads: Map<string, { key: string; parts: Map<number, Buffer> }>
   /** Tags per "bucket/key", so tagging can be asserted on. */
   tags: Map<string, Record<string, string>>
   /** Keys a restore has been requested for. */
@@ -47,11 +49,53 @@ const etagOf = (body: Buffer) => createHash('md5').update(body).digest('hex')
 const escape = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
+/**
+ * Decodes the aws-chunked framing the SDK uses when it streams a body with a trailing
+ * checksum. Real S3 unwraps this; a stub that does not silently stores the framing as
+ * though it were content, and every size and checksum assertion is then wrong by a few
+ * dozen bytes.
+ *
+ * Each chunk is "<hex length>[;chunk-signature=…]\r\n<data>\r\n", ending with a zero
+ * length followed by trailer headers.
+ */
+function decodeAwsChunked(body: Buffer): Buffer {
+  const chunks: Buffer[] = []
+  let offset = 0
+
+  while (offset < body.length) {
+    const lineEnd = body.indexOf('\r\n', offset)
+    if (lineEnd === -1) break
+
+    const header = body.subarray(offset, lineEnd).toString()
+    const length = parseInt(header.split(';')[0], 16)
+    if (Number.isNaN(length)) break
+
+    offset = lineEnd + 2
+    if (length === 0) break
+
+    chunks.push(body.subarray(offset, offset + length))
+    // Past the data and its trailing CRLF.
+    offset += length + 2
+  }
+
+  return Buffer.concat(chunks)
+}
+
+/** True when the body arrived wrapped in that framing rather than as plain bytes. */
+function isChunked(headers: Record<string, string | undefined>): boolean {
+  return (
+    (headers['content-encoding'] ?? '').includes('aws-chunked') ||
+    (headers['x-amz-content-sha256'] ?? '').startsWith('STREAMING')
+  )
+}
+
 export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> {
   const buckets = options.buckets ?? ['test-bucket']
   const objects = new Map<string, { body: Buffer; modified: Date }>()
   const requests: FakeS3['requests'] = []
   const tags = new Map<string, Record<string, string>>()
+  /** In-progress multipart uploads: uploadId → parts by number. */
+  const uploads = new Map<string, { key: string; parts: Map<number, Buffer> }>()
   const restores: string[] = []
 
   for (const [key, body] of Object.entries(options.objects ?? {})) {
@@ -80,7 +124,14 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
       new Promise((resolve) => {
         const chunks: Buffer[] = []
         request.on('data', (chunk: Buffer) => chunks.push(chunk))
-        request.on('end', () => resolve(Buffer.concat(chunks)))
+        request.on('end', () => {
+          const body = Buffer.concat(chunks)
+          resolve(
+            isChunked(request.headers as Record<string, string | undefined>)
+              ? decodeAwsChunked(body)
+              : body
+          )
+        })
       })
 
     void (async () => {
@@ -102,6 +153,80 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
       // GetBucketLocation
       if (request.method === 'GET' && url.searchParams.has('location')) {
         return send(200, xml('<LocationConstraint>eu-west-1</LocationConstraint>'))
+      }
+
+      // CreateMultipartUpload
+      if (request.method === 'POST' && url.searchParams.has('uploads')) {
+        const uploadId = `upload-${uploads.size + 1}-${Date.now()}`
+        uploads.set(uploadId, { key, parts: new Map() })
+        return send(
+          200,
+          xml(
+            `<InitiateMultipartUploadResult><Bucket>${bucket}</Bucket>` +
+              `<Key>${escape(key)}</Key><UploadId>${uploadId}</UploadId>` +
+              `</InitiateMultipartUploadResult>`
+          )
+        )
+      }
+
+      // UploadPart
+      if (request.method === 'PUT' && url.searchParams.has('uploadId')) {
+        const uploadId = url.searchParams.get('uploadId') as string
+        const number = Number(url.searchParams.get('partNumber'))
+        const upload = uploads.get(uploadId)
+        if (!upload) return send(404, xml('<Error><Code>NoSuchUpload</Code></Error>'))
+
+        const body = await readBody()
+        upload.parts.set(number, body)
+        return send(200, '', { ETag: `"${etagOf(body)}"` })
+      }
+
+      // ListParts — how a resumed upload discovers what S3 already holds.
+      if (request.method === 'GET' && url.searchParams.has('uploadId')) {
+        const upload = uploads.get(url.searchParams.get('uploadId') as string)
+        if (!upload) return send(404, xml('<Error><Code>NoSuchUpload</Code></Error>'))
+
+        return send(
+          200,
+          xml(
+            `<ListPartsResult>${[...upload.parts.entries()]
+              .map(
+                ([number, body]) =>
+                  `<Part><PartNumber>${number}</PartNumber><Size>${body.length}</Size>` +
+                  `<ETag>&quot;${etagOf(body)}&quot;</ETag></Part>`
+              )
+              .join('')}</ListPartsResult>`
+          )
+        )
+      }
+
+      // CompleteMultipartUpload
+      if (request.method === 'POST' && url.searchParams.has('uploadId')) {
+        const uploadId = url.searchParams.get('uploadId') as string
+        const upload = uploads.get(uploadId)
+        await readBody()
+        if (!upload) return send(404, xml('<Error><Code>NoSuchUpload</Code></Error>'))
+
+        const assembled = Buffer.concat(
+          [...upload.parts.entries()].sort((a, b) => a[0] - b[0]).map(([, body]) => body)
+        )
+        objects.set(`${bucket}/${key}`, { body: assembled, modified: new Date() })
+        uploads.delete(uploadId)
+
+        return send(
+          200,
+          xml(
+            `<CompleteMultipartUploadResult><Bucket>${bucket}</Bucket>` +
+              `<Key>${escape(key)}</Key><ETag>&quot;${etagOf(assembled)}&quot;</ETag>` +
+              `</CompleteMultipartUploadResult>`
+          )
+        )
+      }
+
+      // AbortMultipartUpload
+      if (request.method === 'DELETE' && url.searchParams.has('uploadId')) {
+        uploads.delete(url.searchParams.get('uploadId') as string)
+        return send(204)
       }
 
       // CORS, lifecycle, logging, website and payment reads and writes
@@ -339,6 +464,7 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
   return {
     url: `http://127.0.0.1:${port}`,
     objects,
+    uploads,
     tags,
     restores,
     requests,

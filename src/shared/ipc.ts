@@ -76,6 +76,8 @@ export const Channels = {
   transfersDownload: 'transfers:download',
   transfersList: 'transfers:list',
   transfersCancel: 'transfers:cancel',
+  transfersPause: 'transfers:pause',
+  transfersResume: 'transfers:resume',
   transfersClearFinished: 'transfers:clear-finished',
   /** Main → renderer: the transfer queue changed. */
   transfersChanged: 'transfers:changed',
@@ -181,6 +183,9 @@ export interface BucketeerApi {
     download(request: DownloadRequest): Promise<Result<number>>
     list(): Promise<Result<Transfer[]>>
     cancel(id: string): Promise<Result<void>>
+    /** Stops an upload while keeping the parts S3 already holds. */
+    pause(id: string): Promise<Result<void>>
+    resume(id: string): Promise<Result<void>>
     clearFinished(): Promise<Result<void>>
     /** Subscribes to queue changes. Returns an unsubscribe function. */
     onChanged(listener: (transfers: Transfer[]) => void): () => void

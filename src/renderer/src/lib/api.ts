@@ -98,6 +98,8 @@ export const api = {
       unwrap(bridge.transfers.download(...args)),
     list: () => unwrap(bridge.transfers.list()),
     cancel: (id: string) => unwrap(bridge.transfers.cancel(id)),
+    pause: (id: string) => unwrap(bridge.transfers.pause(id)),
+    resume: (id: string) => unwrap(bridge.transfers.resume(id)),
     clearFinished: () => unwrap(bridge.transfers.clearFinished()),
     onChanged: bridge.transfers.onChanged
   },
