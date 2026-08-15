@@ -61,7 +61,8 @@ export function ConnectionEditor({ connection, onClose }: Props) {
   const [keyPickerOpen, setKeyPickerOpen] = useState(false)
   const [profiles, setProfiles] = useState<string[]>([])
   const [secretsAvailable, setSecretsAvailable] = useState(true)
-  const [busy, setBusy] = useState(false)
+  const [busyAction, setBusyAction] = useState<'save' | 'test' | 'delete' | null>(null)
+  const busy = busyAction !== null
   const [error, setError] = useState<string | null>(null)
   const [tested, setTested] = useState<string | null>(null)
 
@@ -122,7 +123,7 @@ export function ConnectionEditor({ connection, onClose }: Props) {
   }
 
   async function save(thenTest: boolean) {
-    setBusy(true)
+    setBusyAction(thenTest ? 'test' : 'save')
     setError(null)
     setTested(null)
     try {
@@ -151,20 +152,20 @@ export function ConnectionEditor({ connection, onClose }: Props) {
     } catch (failure) {
       setError(messageFor(failure))
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
   async function remove() {
     if (!savedId) return
-    setBusy(true)
+    setBusyAction('delete')
     try {
       await api.connections.remove(savedId)
       await loadConnections()
       onClose()
     } catch (failure) {
       setError(messageFor(failure))
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
@@ -406,32 +407,57 @@ export function ConnectionEditor({ connection, onClose }: Props) {
               </p>
             ) : null}
 
-            {error ? (
-              <p className="rounded-[3px] border border-danger/40 bg-danger/5 px-3 py-2 text-[11.5px] leading-relaxed text-text">
-                {error}
-              </p>
-            ) : null}
-
-            {tested ? (
-              <p className="rounded-[3px] border border-success/40 bg-success/5 px-3 py-2 text-[11.5px] leading-relaxed text-text">
-                {tested}
-              </p>
-            ) : null}
           </div>
         </div>
+
+        {/* Outcomes sit outside the scrolling body: the previous version rendered them
+            at the end of the form, where a result could land below the fold and read as
+            nothing having happened. */}
+        {busyAction === 'test' || tested || error ? (
+          <div
+            className={`flex shrink-0 items-start gap-2 border-t px-4 py-2.5 ${
+              error
+                ? 'border-danger/30 bg-danger-soft/50'
+                : tested
+                  ? 'border-success/30 bg-success-soft/50'
+                  : 'border-line bg-sunken'
+            }`}
+          >
+            <span className="mt-px shrink-0" aria-hidden>
+              {busyAction === 'test' ? (
+                <span className="block h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-accent" />
+              ) : error ? (
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-danger">
+                  <circle cx="8" cy="8" r="6.25" />
+                  <path d="M8 4.75v4M8 11.1v.05" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-success">
+                  <circle cx="8" cy="8" r="6.25" />
+                  <path d="M5.2 8.2 7 10l3.8-4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </span>
+            <p className="flex-1 text-[11.5px] leading-relaxed whitespace-pre-line text-text">
+              {busyAction === 'test'
+                ? 'Resolving credentials and listing buckets…'
+                : (error ?? tested)}
+            </p>
+          </div>
+        ) : null}
 
         <footer className="flex items-center gap-2 border-t border-line px-4 py-3">
           {savedId ? (
             <Button variant="danger" onClick={() => void remove()} disabled={busy}>
-              Delete
+              {busyAction === 'delete' ? 'Deleting…' : 'Delete'}
             </Button>
           ) : null}
           <div className="flex-1" />
-          <Button onClick={() => void save(true)} disabled={busy}>
-            Test connection
+          <Button variant="secondary" onClick={() => void save(true)} disabled={busy}>
+            {busyAction === 'test' ? 'Testing…' : 'Test connection'}
           </Button>
           <Button variant="primary" onClick={() => void save(false)} disabled={busy}>
-            {busy ? 'Saving…' : 'Save'}
+            {busyAction === 'save' ? 'Saving…' : 'Save'}
           </Button>
         </footer>
       </div>
