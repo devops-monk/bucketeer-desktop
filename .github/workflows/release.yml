@@ -90,9 +90,12 @@ jobs:
           body: |
             ## Installing
 
-            These builds are **not code signed yet**, so the OS will warn you:
+            These builds carry only an ad-hoc signature and are **not notarized**, so
+            every OS will warn you:
 
-            - **macOS** — right-click the app and choose Open, or run
+            - **macOS** — right-click the app and choose Open (macOS 14 and earlier), or
+              open it once and then allow it under System Settings → Privacy & Security
+              (macOS 15+). To skip the prompt entirely:
               `xattr -dr com.apple.quarantine /Applications/Bucketeer.app`
             - **Windows** — SmartScreen shows "unrecognised app"; choose More info, then Run anyway
             - **Linux** — `chmod +x` the AppImage before running it

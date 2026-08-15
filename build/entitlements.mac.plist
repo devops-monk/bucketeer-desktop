@@ -7,6 +7,11 @@
     <true/>
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
     <true/>
+    <!-- Required while builds are ad-hoc signed: library validation would otherwise
+         reject Electron's own frameworks, since they carry a different signature.
+         Can be removed once builds are signed with a real Developer ID. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
     <!-- Talking to S3 and STS. -->
     <key>com.apple.security.network.client</key>
     <true/>

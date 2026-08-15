@@ -25,6 +25,11 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   hardenedRuntime: true
   gatekeeperAssess: false
+  # Ad-hoc signature. Without any signature at all, macOS reports the app as "damaged
+  # and can't be opened" instead of merely untrusted — and on Apple Silicon it refuses
+  # to launch outright. This does not replace a Developer ID: users still see an
+  # unidentified-developer warning, but the app opens after right-click → Open.
+  identity: '-'
 
 win:
   target:
