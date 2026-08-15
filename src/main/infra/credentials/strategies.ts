@@ -50,7 +50,12 @@ export class SharedProfileStrategy implements CredentialStrategy<'shared-profile
   constructor(private readonly profiles?: ProfileDirectory) {}
 
   create(source: Extract<CredentialSource, { kind: 'shared-profile' }>): AwsCredentialIdentityProvider {
-    let provider = fromIni({ profile: source.profileName })
+    // ignoreCache re-reads ~/.aws/config on each resolution. The SDK otherwise parses
+    // those files once per process and keeps the result forever, so correcting a wrong
+    // sso_role_name — or adding a profile — did nothing until the app was restarted,
+    // while the app went on failing with the old value. Resolution is rare (the client
+    // memoizes the credentials it gets), so this costs one small file read.
+    let provider = fromIni({ profile: source.profileName, ignoreCache: true })
 
     return async (...args) => {
       try {
@@ -60,7 +65,7 @@ export class SharedProfileStrategy implements CredentialStrategy<'shared-profile
         // sticks for the life of the client, so signing in with `aws sso login` in a
         // terminal while the app is open would appear to change nothing until it was
         // restarted — the token is on disk, but nothing goes back to read it.
-        provider = fromIni({ profile: source.profileName })
+        provider = fromIni({ profile: source.profileName, ignoreCache: true })
         throw await this.explain(source.profileName, error)
       }
     }

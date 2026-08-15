@@ -7,6 +7,7 @@ import type {
   ObjectPreview
 } from '@shared/types'
 import type { ConnectionRepository, ObjectStorage } from '../core/ports'
+import { withFreshCredentials } from './credential-retry'
 
 /**
  * Use cases for browsing storage. Resolves the connection once and hands the rest to
@@ -18,8 +19,19 @@ export class BrowsingService {
     private readonly storage: ObjectStorage
   ) {}
 
+  /**
+   * The buckets a connection can see.
+   *
+   * This is the first call made when a connection is opened, so it is where a stale
+   * sign-in shows up. A credential failure here is retried once against a freshly built
+   * client, which is what makes "Try again" work after signing in — rather than
+   * repeating an answer the SDK cached before the session existed.
+   */
   async listBuckets(connectionId: string): Promise<Bucket[]> {
-    return this.storage.listBuckets(await this.repository.get(connectionId))
+    const connection = await this.repository.get(connectionId)
+    return withFreshCredentials(this.storage, connectionId, () =>
+      this.storage.listBuckets(connection)
+    )
   }
 
   async listObjects(request: ListObjectsRequest): Promise<ListingPage> {

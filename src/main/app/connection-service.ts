@@ -9,6 +9,7 @@ import type {
   SsoLoginResult,
   SsoPending
 } from '@shared/types'
+import { withFreshCredentials } from './credential-retry'
 import type {
   Clock,
   ConnectionRepository,
@@ -84,7 +85,8 @@ export class ConnectionService {
    */
   async test(id: string): Promise<{ accountId?: string; buckets: number }> {
     this.storage.forget(id)
-    return this.storage.probe(await this.repository.get(id))
+    const connection = await this.repository.get(id)
+    return withFreshCredentials(this.storage, id, () => this.storage.probe(connection))
   }
 
   secretsAvailable(): boolean {

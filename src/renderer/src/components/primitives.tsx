@@ -229,23 +229,37 @@ export function ErrorNotice({
   action?: ReactNode
 }) {
   return (
-    <div className="mx-3 mt-3 flex items-start gap-2.5 rounded-md border border-danger/35 bg-danger-soft/60 px-3 py-2.5">
-      <span className="mt-px shrink-0 text-danger" aria-hidden>
-        <svg
-          viewBox="0 0 16 16"
-          width="14"
-          height="14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        >
-          <circle cx="8" cy="8" r="6.25" />
-          <path d="M8 4.75v4M8 11.1v.05" strokeLinecap="round" />
-        </svg>
-      </span>
-      <p className="flex-1 text-[12px] leading-relaxed whitespace-pre-line text-text">{message}</p>
-      {action}
-      {onRetry ? <Button onClick={onRetry}>Try again</Button> : null}
+    <div className="mx-3 mt-3 rounded-md border border-danger/35 bg-danger-soft/60 px-3 py-2.5">
+      <div className="flex items-start gap-2.5">
+        <span className="mt-px shrink-0 text-danger" aria-hidden>
+          <svg
+            viewBox="0 0 16 16"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
+            <circle cx="8" cy="8" r="6.25" />
+            <path d="M8 4.75v4M8 11.1v.05" strokeLinecap="round" />
+          </svg>
+        </span>
+        {/* A hard measure, so a long explanation reads as prose instead of stretching
+            across the whole window. */}
+        <p className="min-w-0 flex-1 max-w-[78ch] text-[12.5px] leading-[1.55] whitespace-pre-line text-text">
+          {message}
+        </p>
+        {/* A bare retry sits on the message's line; anything larger gets its own row,
+            otherwise the two share a width and the message wraps a word at a time. */}
+        {onRetry && !action ? <Button onClick={onRetry}>Try again</Button> : null}
+      </div>
+
+      {action ? (
+        <div className="mt-2.5 flex items-start gap-2 border-t border-danger/20 pt-2.5 pl-[22px]">
+          <div className="min-w-0 flex-1">{action}</div>
+          {onRetry ? <Button onClick={onRetry}>Try again</Button> : null}
+        </div>
+      ) : null}
     </div>
   )
 }
