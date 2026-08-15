@@ -12,6 +12,7 @@ import { TransferPanel } from './components/TransferPanel'
 import { SsoSignIn } from './components/SsoSignIn'
 import { Button, EmptyState, ErrorNotice, LoadingBar } from './components/primitives'
 import { api, messageFor } from './lib/api'
+import { useListingAutoRefresh } from './lib/auto-refresh'
 import { resolveUploadEncryption } from './lib/uploads'
 import { useSession } from './store/session'
 import { useTransfers } from './store/transfers'
@@ -49,6 +50,9 @@ export function App() {
 
   // The queue lives in the main process; this only mirrors it.
   useEffect(() => subscribeTransfers(), [subscribeTransfers])
+
+  // S3 has no change notification, so a completed upload has to ask for the reload.
+  useListingAutoRefresh()
 
   // Selection shortcuts. Ignored while typing, or the filter box would hijack them.
   useEffect(() => {
