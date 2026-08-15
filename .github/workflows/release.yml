@@ -72,20 +72,48 @@ jobs:
       - name: Typecheck and build bundles
         run: npm run build
 
-      # Signs and notarizes when the Apple secrets exist, and falls back to the ad-hoc
-      # build when they do not — so adding them later needs no change here.
-      # See docs/mac-code-signing.md for how to obtain them.
+      # Signing variables are exported here rather than declared on the packaging step,
+      # because a workflow-level `env:` entry is *defined* even when its secret is empty
+      # — and electron-builder reads a defined-but-empty CSC_LINK as a certificate path,
+      # resolves it to the project directory and fails with "<projectDir> not a file".
+      # Writing to $GITHUB_ENV only when a secret has a value leaves it genuinely unset.
+      # See docs/mac-code-signing.md for how to obtain these.
+      - name: Prepare signing environment
+        shell: bash
+        env:
+          CSC_LINK_SECRET: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD_SECRET: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID_SECRET: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD_SECRET: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID_SECRET: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # A .p12 exported to base64 can be wrapped, so the heredoc form is used rather
+          # than KEY=value, which would silently truncate at the first newline.
+          write() {
+            printf '%s<<CERT_EOF\n%s\nCERT_EOF\n' "$1" "$2" >> "$GITHUB_ENV"
+          }
+
+          if [[ -n "$CSC_LINK_SECRET" ]]; then
+            write CSC_LINK "$CSC_LINK_SECRET"
+            write CSC_KEY_PASSWORD "$CSC_KEY_PASSWORD_SECRET"
+            echo "CSC_IDENTITY_AUTO_DISCOVERY=true" >> "$GITHUB_ENV"
+            echo "Signing with the supplied certificate."
+          else
+            # Discovery would hunt for a certificate that is not there and fail the job
+            # rather than produce the ad-hoc build, so it stays off until one is supplied.
+            echo "CSC_IDENTITY_AUTO_DISCOVERY=false" >> "$GITHUB_ENV"
+            echo "No certificate supplied — building with the ad-hoc signature."
+          fi
+
+          if [[ -n "$APPLE_ID_SECRET" && -n "$APPLE_APP_SPECIFIC_PASSWORD_SECRET" ]]; then
+            write APPLE_ID "$APPLE_ID_SECRET"
+            write APPLE_APP_SPECIFIC_PASSWORD "$APPLE_APP_SPECIFIC_PASSWORD_SECRET"
+            write APPLE_TEAM_ID "$APPLE_TEAM_ID_SECRET"
+          fi
+
       - name: Package installers
         run: ${{ matrix.command }}
         env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Looking for a certificate that is not there fails the job rather than
-          # producing an unsigned build, so discovery stays off until one is supplied.
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-artifact@v4
