@@ -5,6 +5,7 @@
   "productName": "Bucketeer",
   "main": "./out/main/index.js",
   "author": "devops-monk",
+  "license": "Apache-2.0",
   "homepage": "https://github.com/devops-monk/bucketeer-desktop",
   "private": true,
   "type": "module",

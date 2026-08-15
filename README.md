@@ -41,4 +41,5 @@ Not yet accepting contributions while the foundations are in flux. Watch the rep
 
 ## License
 
-TBD.
+[Apache License 2.0](LICENSE). Contributions are accepted under the same license,
+including its patent grant — see section 5 of the license text.
