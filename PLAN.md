@@ -45,7 +45,7 @@ without them.
 
 | Feature | Effort | Notes |
 | --- | --- | --- |
-| Test suite in CI | S | Vitest against a local S3 stub, or LocalStack — **done** |
+| Test suite in CI | S | Vitest against a local S3 stub, or MinIO — **done** |
 | Virtualized object list | S | **done** |
 | Pause and resume uploads | L | Hand-rolled multipart, resuming from parts S3 holds — **done** |
 | Integrity checking | S | SDK flexible checksums, CRC32C — **done** |
