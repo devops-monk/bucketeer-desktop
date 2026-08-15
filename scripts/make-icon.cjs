@@ -32,21 +32,19 @@ const SIZE = 1024
  * create a second BrowserWindow in one process without dying. Pass --tray.
  */
 const TRAY = process.argv.includes('--tray')
-/** Windows and Linux tray icons are not tinted by the system, so they keep the brand. */
-const TRAY_COLOUR = process.argv.includes('--colour')
 /**
- * Menu bar and tray icons are drawn at 16 points, with a second image at twice the
- * density for retina displays. Electron picks the @2x file automatically when it sits
+ * Menu bar and tray icons are drawn at 18 points — what the macOS menu bar gives an
+ * item — with a second image at twice the density for retina displays. Electron picks the @2x file automatically when it sits
  * beside the first, which is what keeps the mark crisp — a single oversized bitmap is
  * downscaled by the system and comes out soft and heavy.
  */
 const TRAY_SIZES = [
-  ['', 16],
-  ['@2x', 32]
+  ['', 18],
+  ['@2x', 36]
 ]
 
 function trayFileName(suffix) {
-  return TRAY_COLOUR ? `trayColour${suffix}.png` : `trayTemplate${suffix}.png`
+  return `tray${suffix}.png`
 }
 
 /** The sizes an .iconset must contain, as {filename size} pairs. */
@@ -93,7 +91,9 @@ app.whenReady().then(async () => {
   const scratch = join(tmpdir(), `bucketeer-icon-${process.pid}`)
   try {
     await mkdir(scratch, { recursive: true })
-    const source = await readFile(join(root, 'build', TRAY ? 'tray.svg' : 'icon.svg'), 'utf8')
+    // The tray mark is the app icon itself, just small: one image for the whole product
+    // rather than a second drawing that has to be kept in step with it.
+    const source = await readFile(join(root, 'build', 'icon.svg'), 'utf8')
     const { scaleFactor } = screen.getPrimaryDisplay()
 
     const wanted = TRAY
@@ -105,11 +105,10 @@ app.whenReady().then(async () => {
       // capturePage returns physical pixels, so a window of target/scaleFactor logical
       // pixels captures at exactly target — no post-capture scaling required.
       const logical = Math.round(target / scaleFactor)
-      let svg = source.replace(
-        TRAY ? /width="32" height="32"/ : /width="1024" height="1024"/,
+      const svg = source.replace(
+        /width="1024" height="1024"/,
         `width="${logical}" height="${logical}"`
       )
-      if (TRAY_COLOUR) svg = svg.replace(/#000000/g, '#DE007B')
 
       const page = join(scratch, `${name}.html`)
       await writeFile(page, `<html><body style="margin:0;background:transparent">${svg}</body></html>`)

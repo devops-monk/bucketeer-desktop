@@ -18,8 +18,12 @@ export class SystemIntegration implements EventBroadcaster {
   constructor(private readonly inner: EventBroadcaster) {}
 
   /**
-   * Creates the tray item. macOS tints a template image to match the menu bar, light or
-   * dark; Windows and Linux draw the icon as given, so they get the coloured one.
+   * Creates the tray item, wearing the app's own icon.
+   *
+   * Not a template image, deliberately: macOS would tint a template to match the menu
+   * bar and the mark would lose its colour, which is the thing that makes it findable
+   * among twenty other icons. The trade is that it no longer inverts with the menu bar
+   * — acceptable for a tile that carries its own background.
    *
    * Only the 1x file is named: macOS finds the @2x version sitting beside it, which is
    * what keeps the mark sharp on a retina display.
@@ -27,11 +31,8 @@ export class SystemIntegration implements EventBroadcaster {
   attachTray(onShow: () => void): void {
     if (this.tray) return
 
-    const file = process.platform === 'darwin' ? 'trayTemplate.png' : 'trayColour.png'
-    const icon = nativeImage.createFromPath(join(import.meta.dirname, '../../build', file))
+    const icon = nativeImage.createFromPath(join(import.meta.dirname, '../../build', 'tray.png'))
     if (icon.isEmpty()) return // No icon shipped: better no tray than an invisible one.
-
-    icon.setTemplateImage(process.platform === 'darwin')
     this.tray = new Tray(icon)
     this.tray.setToolTip('Bucketeer')
     this.setMenu(onShow, 'No transfers')

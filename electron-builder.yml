@@ -9,13 +9,11 @@ directories:
 files:
   - out/**
   - package.json
-  # The tray icons are read at runtime by path, so they have to be inside the app.
-  # The @2x files are never named in code — macOS picks them up beside the 1x ones —
-  # so leaving them out silently gives every retina Mac a soft, scaled-up icon.
-  - build/trayTemplate.png
-  - build/trayTemplate@2x.png
-  - build/trayColour.png
-  - build/trayColour@2x.png
+  # The tray icon is read at runtime by path, so it has to be inside the app. The @2x
+  # file is never named in code — macOS picks it up beside the 1x one — so leaving it
+  # out silently gives every retina Mac a soft, scaled-up icon.
+  - build/tray.png
+  - build/tray@2x.png
 
 # The AWS SDK is bundled into the main chunk, so nothing needs unpacking at runtime.
 asar: true
