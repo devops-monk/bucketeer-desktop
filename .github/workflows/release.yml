@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  # Lets you produce installers from any branch without tagging, to test the pipeline.
+  workflow_dispatch:
+
+jobs:
+  package:
+    name: Package ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing should not throw away installers that already built.
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macOS
+            command: npx electron-builder --mac --publish never
+            artifacts: |
+              release/*.dmg
+              release/*.zip
+          - os: windows-latest
+            name: Windows
+            command: npx electron-builder --win --publish never
+            artifacts: release/*.exe
+          - os: ubuntu-latest
+            name: Linux
+            command: npx electron-builder --linux --publish never
+            artifacts: |
+              release/*.AppImage
+              release/*.deb
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # electron-builder names artifacts from package.json, so align it with the tag
+      # and the downloads match what people actually asked for.
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+
+      - name: Typecheck and build bundles
+        run: npm run build
+
+      - name: Package installers
+        run: ${{ matrix.command }}
+        env:
+          # No signing certificates are configured yet, so tell electron-builder not to
+          # go looking for one — otherwise the macOS job fails instead of shipping an
+          # unsigned build.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bucketeer-${{ matrix.name }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish release
+    needs: package
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          # Every build here is unsigned, so say so where people will actually read it.
+          body: |
+            ## Installing
+
+            These builds are **not code signed yet**, so the OS will warn you:
+
+            - **macOS** — right-click the app and choose Open, or run
+              `xattr -dr com.apple.quarantine /Applications/Bucketeer.app`
+            - **Windows** — SmartScreen shows "unrecognised app"; choose More info, then Run anyway
+            - **Linux** — `chmod +x` the AppImage before running it
+
+            Bucketeer stores AWS credentials in your system keychain and sends them
+            nowhere but AWS.
