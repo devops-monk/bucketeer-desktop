@@ -107,6 +107,29 @@ export interface ListObjectsRequest {
   recursive?: boolean
 }
 
+/** The HTTP headers S3 serves an object with, and the metadata stored beside it. */
+export interface ObjectHeaders {
+  contentType?: string
+  cacheControl?: string
+  contentDisposition?: string
+  contentEncoding?: string
+  contentLanguage?: string
+  /** User metadata, stored as x-amz-meta-* headers. */
+  metadata?: Record<string, string>
+  /** Kept so a rewrite does not silently move the object to another class. */
+  storageClass?: string
+}
+
+export interface RestoreRequest {
+  connectionId: string
+  bucket: string
+  keys: string[]
+  /** How long the restored copy stays readable. */
+  days: number
+  /** Expedited, Standard or Bulk — faster costs more. */
+  tier: string
+}
+
 export interface ObjectDetail {
   key: string
   size: number
@@ -117,6 +140,12 @@ export interface ObjectDetail {
   serverSideEncryption?: string
   kmsKeyId?: string
   metadata?: Record<string, string>
+  cacheControl?: string
+  contentDisposition?: string
+  contentEncoding?: string
+  contentLanguage?: string
+  /** Present while an archived object is being restored, or once it has been. */
+  restoreStatus?: string
 }
 
 /** Where a profile signs in, and how its token cache is keyed. */

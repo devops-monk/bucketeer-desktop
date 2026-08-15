@@ -67,9 +67,9 @@ without them.
 | Feature | Effort | Notes |
 | --- | --- | --- |
 | Versions | M | List, restore, permanently delete; delete markers |
-| Metadata and HTTP headers | M | Content-Type, Cache-Control, defaults on upload |
-| Object tags | S | Single and bulk |
-| Glacier restore | M | Tier choice and visible progress |
+| Metadata and HTTP headers | M | Editable in the details panel — **done** |
+| Object tags | S | Editable in the details panel — **done** |
+| Glacier restore | M | Started from the details panel, status shown — **done** |
 | Object Lock | M | Read retention and legal holds; writing later |
 
 ### v0.7 — Administering buckets

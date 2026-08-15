@@ -8,6 +8,7 @@ import type {
   ListingPage,
   KmsKey,
   ObjectDetail,
+  ObjectHeaders,
   S3Object,
   SsoLoginResult,
   SsoPending,
@@ -127,6 +128,33 @@ export interface ObjectStorage {
   /** Writes the zero-byte marker object that makes an empty folder visible. */
   createFolder(connection: Connection, bucket: string, key: string): Promise<void>
   presign(connection: Connection, bucket: string, key: string, expiresInSeconds: number): Promise<string>
+
+  /** Tags on a single object. */
+  getTags(connection: Connection, bucket: string, key: string): Promise<Record<string, string>>
+  putTags(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    tags: Record<string, string>
+  ): Promise<void>
+  /**
+   * Rewrites an object's headers and metadata in place. S3 has no edit, so this is a
+   * copy onto itself with the directive to replace rather than keep.
+   */
+  replaceMetadata(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    headers: ObjectHeaders
+  ): Promise<void>
+  /** Asks for an archived object to be made readable, and reports how that is going. */
+  restoreObject(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    days: number,
+    tier: string
+  ): Promise<void>
   /** Cheap round trip that proves the credentials resolve and the endpoint answers. */
   probe(connection: Connection): Promise<{ accountId?: string; buckets: number }>
   /** Drops cached clients for a connection whose credentials may have changed. */

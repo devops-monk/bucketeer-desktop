@@ -7,6 +7,9 @@ import {
   CopyObjectCommand,
   CreateBucketCommand,
   DeleteBucketCommand,
+  GetObjectTaggingCommand,
+  PutObjectTaggingCommand,
+  RestoreObjectCommand,
   GetBucketEncryptionCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
@@ -24,6 +27,7 @@ import type {
   ListObjectsRequest,
   ListingPage,
   ObjectDetail,
+  ObjectHeaders,
   S3Object
 } from '@shared/types'
 import type {
@@ -122,7 +126,13 @@ export class S3ObjectStorage implements ObjectStorage {
       storageClass: result.StorageClass,
       serverSideEncryption: result.ServerSideEncryption,
       kmsKeyId: result.SSEKMSKeyId,
-      metadata: result.Metadata
+      metadata: result.Metadata,
+      cacheControl: result.CacheControl,
+      contentDisposition: result.ContentDisposition,
+      contentEncoding: result.ContentEncoding,
+      contentLanguage: result.ContentLanguage,
+      // "ongoing-request=true" while a restore is running, or an expiry date once done.
+      restoreStatus: result.Restore
     }
   }
 
@@ -344,6 +354,89 @@ export class S3ObjectStorage implements ObjectStorage {
         ...(kmsKeyId
           ? { ServerSideEncryption: 'aws:kms' as const, SSEKMSKeyId: kmsKeyId }
           : {})
+      })
+    )
+  }
+
+  async getTags(
+    connection: Connection,
+    bucket: string,
+    key: string
+  ): Promise<Record<string, string>> {
+    const client = await this.factory.forBucket(connection, bucket)
+    const result = await client.send(new GetObjectTaggingCommand({ Bucket: bucket, Key: key }))
+
+    return Object.fromEntries(
+      (result.TagSet ?? [])
+        .filter((tag) => tag.Key !== undefined)
+        .map((tag) => [tag.Key as string, tag.Value ?? ''])
+    )
+  }
+
+  async putTags(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    tags: Record<string, string>
+  ): Promise<void> {
+    const client = await this.factory.forBucket(connection, bucket)
+    await client.send(
+      new PutObjectTaggingCommand({
+        Bucket: bucket,
+        Key: key,
+        Tagging: { TagSet: Object.entries(tags).map(([Key, Value]) => ({ Key, Value })) }
+      })
+    )
+  }
+
+  /**
+   * Rewrites an object's headers.
+   *
+   * MetadataDirective REPLACE is what makes this an edit rather than a copy: without it
+   * S3 keeps the original headers and the change silently does nothing. Every header has
+   * to be restated for the same reason — anything omitted is dropped, not preserved.
+   */
+  async replaceMetadata(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    headers: ObjectHeaders
+  ): Promise<void> {
+    const client = await this.factory.forBucket(connection, bucket)
+
+    await client.send(
+      new CopyObjectCommand({
+        Bucket: bucket,
+        CopySource: `${bucket}/${encodeURIComponent(key).replace(/%2F/g, '/')}`,
+        Key: key,
+        MetadataDirective: 'REPLACE',
+        ContentType: headers.contentType,
+        CacheControl: headers.cacheControl,
+        ContentDisposition: headers.contentDisposition,
+        ContentEncoding: headers.contentEncoding,
+        ContentLanguage: headers.contentLanguage,
+        Metadata: headers.metadata,
+        ...(headers.storageClass ? { StorageClass: headers.storageClass as never } : {}),
+        ...(connection.kmsKeyId
+          ? { ServerSideEncryption: 'aws:kms' as const, SSEKMSKeyId: connection.kmsKeyId }
+          : {})
+      })
+    )
+  }
+
+  async restoreObject(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    days: number,
+    tier: string
+  ): Promise<void> {
+    const client = await this.factory.forBucket(connection, bucket)
+    await client.send(
+      new RestoreObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        RestoreRequest: { Days: days, GlacierJobParameters: { Tier: tier as never } }
       })
     )
   }

@@ -24,6 +24,10 @@ export interface FakeS3Options {
 
 export interface FakeS3 {
   url: string
+  /** Tags per "bucket/key", so tagging can be asserted on. */
+  tags: Map<string, Record<string, string>>
+  /** Keys a restore has been requested for. */
+  restores: string[]
   /** Everything the server currently holds, for assertions. */
   objects: Map<string, { body: Buffer; modified: Date }>
   /** Requests seen, for asserting on headers such as server-side encryption. */
@@ -41,6 +45,8 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
   const buckets = options.buckets ?? ['test-bucket']
   const objects = new Map<string, { body: Buffer; modified: Date }>()
   const requests: FakeS3['requests'] = []
+  const tags = new Map<string, Record<string, string>>()
+  const restores: string[] = []
 
   for (const [key, body] of Object.entries(options.objects ?? {})) {
     objects.set(key, { body: Buffer.from(body), modified: new Date('2026-01-02T03:04:05Z') })
@@ -113,6 +119,37 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
               `</ApplyServerSideEncryptionByDefault></Rule></ServerSideEncryptionConfiguration>`
           )
         )
+      }
+
+      // Object tagging
+      if (url.searchParams.has('tagging') && bucket && key) {
+        const id = `${bucket}/${key}`
+        if (request.method === 'GET') {
+          const set = tags.get(id) ?? {}
+          return send(
+            200,
+            xml(
+              `<Tagging><TagSet>${Object.entries(set)
+                .map(([name, value]) => `<Tag><Key>${escape(name)}</Key><Value>${escape(value)}</Value></Tag>`)
+                .join('')}</TagSet></Tagging>`
+            )
+          )
+        }
+        if (request.method === 'PUT') {
+          const body = (await readBody()).toString()
+          const parsed: Record<string, string> = {}
+          for (const match of body.matchAll(/<Tag><Key>([^<]*)<\/Key><Value>([^<]*)<\/Value><\/Tag>/g)) {
+            parsed[match[1]] = match[2]
+          }
+          tags.set(id, parsed)
+          return send(200)
+        }
+      }
+
+      // RestoreObject
+      if (request.method === 'POST' && url.searchParams.has('restore')) {
+        restores.push(`${bucket}/${key}`)
+        return send(202)
       }
 
       // DeleteObjects
@@ -242,6 +279,8 @@ export async function startFakeS3(options: FakeS3Options = {}): Promise<FakeS3> 
   return {
     url: `http://127.0.0.1:${port}`,
     objects,
+    tags,
+    restores,
     requests,
     close: () => new Promise<void>((resolve) => server.close(() => resolve()))
   }

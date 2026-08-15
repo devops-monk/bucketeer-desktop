@@ -15,7 +15,9 @@ import type {
   ListObjectsRequest,
   ListingPage,
   ObjectDetail,
+  ObjectHeaders,
   PresignRequest,
+  RestoreRequest,
   RenameRequest,
   KmsKey,
   Result,
@@ -47,6 +49,10 @@ export const Channels = {
   objectsRename: 'objects:rename',
   objectsCreateFolder: 'objects:create-folder',
   objectsPresign: 'objects:presign',
+  objectsGetTags: 'objects:get-tags',
+  objectsSetTags: 'objects:set-tags',
+  objectsSetHeaders: 'objects:set-headers',
+  objectsRestore: 'objects:restore',
   bucketsEncryption: 'buckets:encryption',
   bucketsCreate: 'buckets:create',
   bucketsDelete: 'buckets:delete',
@@ -118,6 +124,25 @@ export interface BucketeerApi {
     /** Server-side copy or move, within a bucket or across buckets. */
     copy(request: TransferObjectsRequest): Promise<Result<CopyResult>>
     setStorageClass(request: SetStorageClassRequest): Promise<Result<CopyResult>>
+    tags(connectionId: string, bucket: string, key: string): Promise<Result<Record<string, string>>>
+    /** Replaces the whole tag set; S3 has no partial update. */
+    setTags(
+      connectionId: string,
+      bucket: string,
+      key: string,
+      tags: Record<string, string>
+    ): Promise<Result<void>>
+    /** Rewrites HTTP headers and user metadata in place. */
+    setHeaders(
+      connectionId: string,
+      bucket: string,
+      key: string,
+      headers: ObjectHeaders
+    ): Promise<Result<void>>
+    /** Starts a Glacier restore. Completion is read from the object's restore status. */
+    restore(
+      request: RestoreRequest
+    ): Promise<Result<{ started: number; failed: Array<{ key: string; reason: string }> }>>
   }
   sync: {
     /** Works out what would change, without changing anything. */

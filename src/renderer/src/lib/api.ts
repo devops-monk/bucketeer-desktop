@@ -63,7 +63,14 @@ export const api = {
       unwrap(bridge.objects.presign(...args)),
     copy: (...args: Parameters<typeof bridge.objects.copy>) => unwrap(bridge.objects.copy(...args)),
     setStorageClass: (...args: Parameters<typeof bridge.objects.setStorageClass>) =>
-      unwrap(bridge.objects.setStorageClass(...args))
+      unwrap(bridge.objects.setStorageClass(...args)),
+    tags: (...args: Parameters<typeof bridge.objects.tags>) => unwrap(bridge.objects.tags(...args)),
+    setTags: (...args: Parameters<typeof bridge.objects.setTags>) =>
+      unwrap(bridge.objects.setTags(...args)),
+    setHeaders: (...args: Parameters<typeof bridge.objects.setHeaders>) =>
+      unwrap(bridge.objects.setHeaders(...args)),
+    restore: (...args: Parameters<typeof bridge.objects.restore>) =>
+      unwrap(bridge.objects.restore(...args))
   },
   sync: {
     analyze: (...args: Parameters<typeof bridge.sync.analyze>) =>

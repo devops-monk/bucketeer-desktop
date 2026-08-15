@@ -5,7 +5,9 @@ import type {
   DeleteBucketRequest,
   DeleteRequest,
   PresignRequest,
+  ObjectHeaders,
   RenameRequest,
+  RestoreRequest,
   SetStorageClassRequest,
   TransferObjectsRequest
 } from '@shared/types'
@@ -27,6 +29,22 @@ export class ObjectModule implements IpcModule {
       this.service.createFolder(request)
     )
     router.handle(Channels.objectsPresign, (request: PresignRequest) => this.service.presign(request))
+    router.handle(Channels.objectsGetTags, (connectionId: string, bucket: string, key: string) =>
+      this.service.tags(connectionId, bucket, key)
+    )
+    router.handle(
+      Channels.objectsSetTags,
+      (connectionId: string, bucket: string, key: string, tags: Record<string, string>) =>
+        this.service.setTags(connectionId, bucket, key, tags)
+    )
+    router.handle(
+      Channels.objectsSetHeaders,
+      (connectionId: string, bucket: string, key: string, headers: ObjectHeaders) =>
+        this.service.setHeaders(connectionId, bucket, key, headers)
+    )
+    router.handle(Channels.objectsRestore, (request: RestoreRequest) =>
+      this.service.restore(request)
+    )
     router.handle(Channels.objectsCopy, (request: TransferObjectsRequest) =>
       this.buckets.copy(request)
     )

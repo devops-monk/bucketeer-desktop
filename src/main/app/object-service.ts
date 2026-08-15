@@ -1,5 +1,7 @@
 import type {
   CreateFolderRequest,
+  ObjectHeaders,
+  RestoreRequest,
   DeleteRequest,
   DeleteResult,
   PresignRequest,
@@ -76,6 +78,74 @@ export class ObjectService {
 
     const connection = await this.repository.get(request.connectionId)
     await this.storage.createFolder(connection, request.bucket, `${request.prefix}${name}/`)
+  }
+
+  async tags(connectionId: string, bucket: string, key: string): Promise<Record<string, string>> {
+    return this.storage.getTags(await this.repository.get(connectionId), bucket, key)
+  }
+
+  /**
+   * Replaces an object's tags. S3 has no partial update: the set sent becomes the set
+   * stored, which is why the editor sends every tag rather than a change.
+   */
+  async setTags(
+    connectionId: string,
+    bucket: string,
+    key: string,
+    tags: Record<string, string>
+  ): Promise<void> {
+    for (const [name, value] of Object.entries(tags)) {
+      if (!name.trim()) throw new BucketeerError('Tag names cannot be empty.', 'InvalidTag')
+      if (name.length > 128 || value.length > 256) {
+        throw new BucketeerError(
+          'Tag names are limited to 128 characters and values to 256.',
+          'InvalidTag'
+        )
+      }
+    }
+    if (Object.keys(tags).length > 10) {
+      throw new BucketeerError('S3 allows at most 10 tags per object.', 'InvalidTag')
+    }
+
+    await this.storage.putTags(await this.repository.get(connectionId), bucket, key, tags)
+  }
+
+  async setHeaders(
+    connectionId: string,
+    bucket: string,
+    key: string,
+    headers: ObjectHeaders
+  ): Promise<void> {
+    await this.storage.replaceMetadata(
+      await this.repository.get(connectionId),
+      bucket,
+      key,
+      headers
+    )
+  }
+
+  /**
+   * Asks for archived objects to be made readable again.
+   *
+   * Restoring is not instant and not free: Glacier takes minutes to hours depending on
+   * tier, Deep Archive up to twelve. The request only starts the process — progress is
+   * read back from the object's own restore status.
+   */
+  async restore(request: RestoreRequest): Promise<{ started: number; failed: Array<{ key: string; reason: string }> }> {
+    const connection = await this.repository.get(request.connectionId)
+    const failed: Array<{ key: string; reason: string }> = []
+    let started = 0
+
+    for (const key of request.keys) {
+      try {
+        await this.storage.restoreObject(connection, request.bucket, key, request.days, request.tier)
+        started += 1
+      } catch (error) {
+        failed.push({ key, reason: error instanceof Error ? error.message : String(error) })
+      }
+    }
+
+    return { started, failed }
   }
 
   async presign(request: PresignRequest): Promise<string> {

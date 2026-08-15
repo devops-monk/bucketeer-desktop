@@ -324,3 +324,53 @@ describe('buckets and cross-bucket moves', () => {
     expect(copy?.headers['x-amz-storage-class']).toBe('GLACIER_IR')
   })
 })
+
+describe('object metadata', () => {
+  it('reads back the tags it wrote', async () => {
+    await objects.setTags('test', 'test-bucket', 'reports/readme.txt', {
+      owner: 'finance',
+      retention: '7y'
+    })
+
+    expect(await objects.tags('test', 'test-bucket', 'reports/readme.txt')).toEqual({
+      owner: 'finance',
+      retention: '7y'
+    })
+  })
+
+  it('refuses more tags than S3 allows', async () => {
+    const tooMany = Object.fromEntries(
+      Array.from({ length: 11 }, (_, index) => [`tag${index}`, 'value'])
+    )
+
+    await expect(
+      objects.setTags('test', 'test-bucket', 'reports/readme.txt', tooMany)
+    ).rejects.toThrow(/at most 10/i)
+  })
+
+  it('rewrites headers with the replace directive, not a plain copy', async () => {
+    await objects.setHeaders('test', 'test-bucket', 'reports/readme.txt', {
+      contentType: 'text/csv',
+      cacheControl: 'max-age=3600'
+    })
+
+    const copy = server.requests.filter((request) => request.headers['x-amz-copy-source']).at(-1)
+    // Without REPLACE, S3 keeps the original headers and the edit does nothing at all.
+    expect(copy?.headers['x-amz-metadata-directive']).toBe('REPLACE')
+    expect(copy?.headers['content-type']).toBe('text/csv')
+    expect(copy?.headers['cache-control']).toBe('max-age=3600')
+  })
+
+  it('starts a restore for archived objects', async () => {
+    const result = await objects.restore({
+      connectionId: 'test',
+      bucket: 'test-bucket',
+      keys: ['reports/readme.txt'],
+      days: 7,
+      tier: 'Standard'
+    })
+
+    expect(result.started).toBe(1)
+    expect(server.restores).toContain('test-bucket/reports/readme.txt')
+  })
+})
