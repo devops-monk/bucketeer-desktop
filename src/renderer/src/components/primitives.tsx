@@ -1,4 +1,5 @@
-import { forwardRef } from 'react'
+import { forwardRef, useCallback, useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
 
 /** Shared building blocks, so spacing, states and weight stay consistent across the app. */
@@ -35,12 +36,25 @@ export function Button({ variant = 'ghost', size = 'md', className = '', ...prop
   return <button className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...props} />
 }
 
+/** Distance between the trigger and the bubble. */
+const TOOLTIP_GAP = 8
+/** Kept this far from the window edge, so a bubble never sits half off-screen. */
+const VIEWPORT_MARGIN = 8
+/** A pointer crossing the toolbar should not leave a trail of bubbles behind it. */
+const TOOLTIP_DELAY_MS = 220
+
 /**
  * A tooltip on hover and on keyboard focus.
  *
- * CSS-only and deliberately delayed: an instant bubble under a moving pointer is noise,
- * and a tool this dense would flicker constantly. Never used to hide something a person
- * needs — only to explain the AWS vocabulary the field is asking for.
+ * Rendered into the document body rather than beside its trigger, and positioned from
+ * the trigger's measured rectangle. An absolutely positioned bubble is clipped by any
+ * ancestor that scrolls or hides its overflow — which in this app is most of them: every
+ * dialog, the object panel, the toolbar — and no z-index rescues it, because clipping is
+ * not a stacking question. That is why explanations were invisible exactly where the
+ * vocabulary is hardest.
+ *
+ * It flips to the other side when there is no room, and is nudged back inside the window
+ * horizontally rather than being allowed to overhang.
  */
 export function Tooltip({
   label,
@@ -51,19 +65,106 @@ export function Tooltip({
   children: ReactNode
   side?: 'top' | 'bottom'
 }) {
-  const position =
-    side === 'top' ? 'bottom-full mb-1.5 origin-bottom' : 'top-full mt-1.5 origin-top'
+  const id = useId()
+  const trigger = useRef<HTMLSpanElement>(null)
+  const bubble = useRef<HTMLSpanElement>(null)
+  const [shown, setShown] = useState(false)
+  const [placement, setPlacement] = useState({ left: 0, top: 0, above: side === 'top' })
+
+  const place = useCallback(() => {
+    const anchor = trigger.current?.getBoundingClientRect()
+    if (!anchor) return
+
+    // Measured where it already is; before the first frame this is the previous size,
+    // which is close enough to avoid a visible jump and is corrected immediately after.
+    const box = bubble.current?.getBoundingClientRect()
+    const height = box?.height ?? 32
+    const width = box?.width ?? 200
+
+    const fitsAbove = anchor.top - height - TOOLTIP_GAP > VIEWPORT_MARGIN
+    const fitsBelow = anchor.bottom + height + TOOLTIP_GAP < window.innerHeight - VIEWPORT_MARGIN
+    const above = side === 'top' ? fitsAbove || !fitsBelow : !(fitsBelow || !fitsAbove)
+
+    const centred = anchor.left + anchor.width / 2 - width / 2
+    const left = Math.min(
+      Math.max(VIEWPORT_MARGIN, centred),
+      Math.max(VIEWPORT_MARGIN, window.innerWidth - width - VIEWPORT_MARGIN)
+    )
+
+    setPlacement({
+      left,
+      top: above ? anchor.top - height - TOOLTIP_GAP : anchor.bottom + TOOLTIP_GAP,
+      above
+    })
+  }, [side])
+
+  // Measure once more after the bubble exists, so its real size decides the position.
+  useEffect(() => {
+    if (!shown) return
+    place()
+
+    // Scrolling or resizing moves the trigger out from under a fixed bubble.
+    const dismiss = (): void => setShown(false)
+    window.addEventListener('scroll', dismiss, true)
+    window.addEventListener('resize', dismiss)
+    return () => {
+      window.removeEventListener('scroll', dismiss, true)
+      window.removeEventListener('resize', dismiss)
+    }
+  }, [shown, place])
+
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const show = (delay: number): void => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      place()
+      setShown(true)
+    }, delay)
+  }
+
+  const hide = (): void => {
+    if (timer.current) clearTimeout(timer.current)
+    setShown(false)
+  }
+
+  // A pending bubble must not appear after the component has gone.
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current)
+  }, [])
 
   return (
-    <span className="group/tip relative inline-flex">
-      {children}
+    <>
       <span
-        role="tooltip"
-        className={`pointer-events-none absolute left-1/2 z-50 w-max max-w-[260px] -translate-x-1/2 scale-95 rounded-md border border-line bg-raised px-2 py-1.5 text-[11px] leading-relaxed text-text opacity-0 shadow-md transition-[opacity,transform] duration-150 group-hover/tip:scale-100 group-hover/tip:opacity-100 group-focus-within/tip:scale-100 group-focus-within/tip:opacity-100 ${position}`}
+        ref={trigger}
+        className="inline-flex"
+        aria-describedby={shown ? id : undefined}
+        onMouseEnter={() => show(TOOLTIP_DELAY_MS)}
+        onMouseLeave={hide}
+        // Keyboard focus is deliberate, so it answers straight away.
+        onFocus={() => show(0)}
+        onBlur={hide}
       >
-        {label}
+        {children}
       </span>
-    </span>
+
+      {shown
+        ? createPortal(
+            <span
+              id={id}
+              ref={bubble}
+              role="tooltip"
+              style={{ left: placement.left, top: placement.top }}
+              className={`pointer-events-none fixed z-[100] w-max max-w-[280px] rounded-md border border-line bg-raised px-2 py-1.5 text-[11px] leading-relaxed text-text shadow-md ${
+                placement.above ? 'origin-bottom' : 'origin-top'
+              }`}
+            >
+              {label}
+            </span>,
+            document.body
+          )
+        : null}
+    </>
   )
 }
 
