@@ -3,9 +3,10 @@ import type { ObjectDetail, ObjectVersion } from '@shared/types'
 import { api, messageFor } from '../lib/api'
 import { formatBytes, formatFullTimestamp } from '../lib/format'
 import { useSession } from '../store/session'
+import { ObjectPreviewPane } from './ObjectPreviewPane'
 import { Button, Input, Tooltip } from './primitives'
 
-type Tab = 'details' | 'headers' | 'tags' | 'versions'
+type Tab = 'details' | 'preview' | 'headers' | 'tags' | 'versions'
 
 /**
  * Everything about one object other than its bytes.
@@ -14,11 +15,19 @@ type Tab = 'details' | 'headers' | 'tags' | 'versions'
  * object is protected by the key you expect. It now also edits the two things people
  * come here to change: the headers S3 serves the object with, and its tags.
  */
-export function ObjectDetails({ objectKey, onClose }: { objectKey: string; onClose: () => void }) {
+export function ObjectDetails({
+  objectKey,
+  initialTab = 'details',
+  onClose
+}: {
+  objectKey: string
+  initialTab?: Tab
+  onClose: () => void
+}) {
   const connectionId = useSession((state) => state.activeConnectionId)
   const location = useSession((state) => state.location)
 
-  const [tab, setTab] = useState<Tab>('details')
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [detail, setDetail] = useState<ObjectDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,7 +64,7 @@ export function ObjectDetails({ objectKey, onClose }: { objectKey: string; onClo
       </p>
 
       <nav className="flex shrink-0 gap-1 border-b border-line-soft px-2 py-1.5">
-        {(['details', 'headers', 'tags', 'versions'] as Tab[]).map((value) => (
+        {(['details', 'preview', 'headers', 'tags', 'versions'] as Tab[]).map((value) => (
           <button
             key={value}
             onClick={() => setTab(value)}
@@ -75,6 +84,8 @@ export function ObjectDetails({ objectKey, onClose }: { objectKey: string; onClo
         {detail && tab === 'details' ? (
           <Details detail={detail} archived={archived} objectKey={objectKey} onChanged={load} />
         ) : null}
+
+        {tab === 'preview' ? <ObjectPreviewPane objectKey={objectKey} /> : null}
 
         {detail && tab === 'headers' ? (
           <HeadersEditor detail={detail} objectKey={objectKey} onSaved={load} />

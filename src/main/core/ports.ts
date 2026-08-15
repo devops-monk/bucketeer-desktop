@@ -11,6 +11,7 @@ import type {
   KmsKey,
   ObjectDetail,
   ObjectHeaders,
+  ObjectPreview,
   ObjectVersion,
   S3Object,
   SearchUpdate,
@@ -154,6 +155,14 @@ export interface ObjectStorage {
   restoreVersion(connection: Connection, bucket: string, key: string, versionId: string): Promise<void>
   /** Removes one specific version. Unlike an ordinary delete, this cannot be undone. */
   deleteVersion(connection: Connection, bucket: string, key: string, versionId: string): Promise<void>
+
+  /** Reads the first bytes of an object, for previewing it. */
+  getObjectRange(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    maxBytes: number
+  ): Promise<ObjectPreview>
 
   /** Tags on a single object. */
   getTags(connection: Connection, bucket: string, key: string): Promise<Record<string, string>>

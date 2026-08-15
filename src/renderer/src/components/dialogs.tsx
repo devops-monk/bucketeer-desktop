@@ -127,37 +127,57 @@ export function PromptDialog({
   )
 }
 
-/** Shows a generated link and copies it, since the URL is far too long to read. */
+/**
+ * Shows generated links and copies them, since the URLs are far too long to read.
+ *
+ * A presigned URL carries its own authorisation, so the warning is not decoration:
+ * anyone holding it can download the object until it expires, with no AWS account.
+ */
 export function LinkDialog({
-  url,
+  links,
   expiresLabel,
   onClose
 }: {
-  url: string
+  links: Array<{ key: string; url: string }>
   expiresLabel: string
   onClose: () => void
 }) {
   const [copied, setCopied] = useState(false)
+  const many = links.length > 1
 
   return (
-    <Modal label="Share link" onClose={onClose}>
-      <p className="text-[13px] text-text">Share link</p>
+    <Modal label="Share links" onClose={onClose}>
+      <p className="text-[13px] text-text">
+        {many ? `${links.length} share links` : 'Share link'}
+      </p>
       <p className="mt-2 text-[12px] leading-relaxed text-muted">
-        Anyone with this link can download the object. It stops working {expiresLabel}.
+        Anyone with {many ? 'these links' : 'this link'} can download{' '}
+        {many ? 'these objects' : 'the object'} without an AWS account.{' '}
+        {many ? 'They stop' : 'It stops'} working {expiresLabel}.
       </p>
-      <p className="tabular mt-3 max-h-24 overflow-y-auto rounded-[3px] border border-line bg-ink px-2.5 py-2 text-[11px] break-all text-muted">
-        {url}
-      </p>
+
+      <div className="tabular mt-3 max-h-56 overflow-y-auto rounded-md border border-line bg-sunken">
+        {links.map((link) => (
+          <div key={link.key} className="border-b border-line-soft px-2.5 py-2 last:border-b-0">
+            {many ? (
+              <p className="truncate text-[10.5px] text-faint">{link.key}</p>
+            ) : null}
+            <p className="text-[11px] break-all text-muted">{link.url}</p>
+          </div>
+        ))}
+      </div>
+
       <div className="mt-4 flex justify-end gap-2">
         <Button onClick={onClose}>Close</Button>
         <Button
           variant="primary"
           onClick={() => {
-            void navigator.clipboard.writeText(url)
+            // One per line, which is what pastes usefully into a message or a script.
+            void navigator.clipboard.writeText(links.map((link) => link.url).join('\n'))
             setCopied(true)
           }}
         >
-          {copied ? 'Copied' : 'Copy link'}
+          {copied ? 'Copied' : many ? `Copy ${links.length} links` : 'Copy link'}
         </Button>
       </div>
     </Modal>

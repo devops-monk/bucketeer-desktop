@@ -44,6 +44,7 @@ export function App() {
 
   const uploadOverride = useSession((state) => state.uploadOverride)
   const detailsKey = useSession((state) => state.detailsKey)
+  const detailsTab = useSession((state) => state.detailsTab)
   const setDetailsKey = useSession((state) => state.setDetailsKey)
   const subscribeTransfers = useTransfers((state) => state.subscribe)
 
@@ -200,7 +201,11 @@ export function App() {
         </main>
 
         {detailsKey ? (
-          <ObjectDetails objectKey={detailsKey} onClose={() => setDetailsKey(null)} />
+          <ObjectDetails
+            objectKey={detailsKey}
+            initialTab={detailsTab}
+            onClose={() => setDetailsKey(null)}
+          />
         ) : null}
       </div>
 

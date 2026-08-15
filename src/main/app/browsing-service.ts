@@ -3,7 +3,8 @@ import type {
   BucketEncryption,
   ListObjectsRequest,
   ListingPage,
-  ObjectDetail
+  ObjectDetail,
+  ObjectPreview
 } from '@shared/types'
 import type { ConnectionRepository, ObjectStorage } from '../core/ports'
 
@@ -29,6 +30,21 @@ export class BrowsingService {
   /** What the bucket encrypts new objects with by default, when it will tell us. */
   async bucketEncryption(connectionId: string, bucket: string): Promise<BucketEncryption | null> {
     return this.storage.getDefaultEncryption(await this.repository.get(connectionId), bucket)
+  }
+
+  /** The first slice of an object, for the preview pane. */
+  async preview(
+    connectionId: string,
+    bucket: string,
+    key: string,
+    maxBytes: number
+  ): Promise<ObjectPreview> {
+    return this.storage.getObjectRange(
+      await this.repository.get(connectionId),
+      bucket,
+      key,
+      maxBytes
+    )
   }
 
   async headObject(connectionId: string, bucket: string, key: string): Promise<ObjectDetail> {

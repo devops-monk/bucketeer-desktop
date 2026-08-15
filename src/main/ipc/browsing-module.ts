@@ -17,6 +17,11 @@ export class BrowsingModule implements IpcModule {
     router.handle(Channels.objectHead, (connectionId: string, bucket: string, key: string) =>
       this.service.headObject(connectionId, bucket, key)
     )
+    router.handle(
+      Channels.objectPreview,
+      (connectionId: string, bucket: string, key: string, maxBytes: number) =>
+        this.service.preview(connectionId, bucket, key, maxBytes)
+    )
     router.handle(Channels.bucketsEncryption, (connectionId: string, bucket: string) =>
       this.service.bucketEncryption(connectionId, bucket)
     )

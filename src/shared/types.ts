@@ -110,6 +110,17 @@ export interface ListObjectsRequest {
 }
 
 /** The HTTP headers S3 serves an object with, and the metadata stored beside it. */
+/** The first slice of an object, for showing it without downloading the whole thing. */
+export interface ObjectPreview {
+  /** Raw bytes, decoded in the renderer according to contentType. */
+  data: Uint8Array
+  contentType?: string
+  /** Total size of the object, not of this slice. */
+  size: number
+  /** True when the object is larger than the slice that was read. */
+  truncated: boolean
+}
+
 export interface ObjectHeaders {
   contentType?: string
   cacheControl?: string

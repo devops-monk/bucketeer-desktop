@@ -198,6 +198,15 @@ export function InfoIcon({ className }: IconProps) {
   )
 }
 
+export function EyeIcon({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M1.5 8s2.4-4.25 6.5-4.25S14.5 8 14.5 8s-2.4 4.25-6.5 4.25S1.5 8 1.5 8Z" />
+      <circle cx="8" cy="8" r="1.75" />
+    </Svg>
+  )
+}
+
 export function SettingsIcon({ className }: IconProps) {
   return (
     <Svg className={className}>

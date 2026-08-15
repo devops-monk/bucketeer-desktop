@@ -19,6 +19,7 @@ import type {
   ListingPage,
   ObjectDetail,
   ObjectHeaders,
+  ObjectPreview,
   ObjectVersion,
   Preferences,
   PresignRequest,
@@ -52,6 +53,7 @@ export const Channels = {
   bucketsList: 'buckets:list',
   objectsList: 'objects:list',
   objectHead: 'objects:head',
+  objectPreview: 'objects:preview',
   objectsDelete: 'objects:delete',
   objectsRename: 'objects:rename',
   objectsCreateFolder: 'objects:create-folder',
@@ -144,6 +146,13 @@ export interface BucketeerApi {
   objects: {
     list(request: ListObjectsRequest): Promise<Result<ListingPage>>
     head(connectionId: string, bucket: string, key: string): Promise<Result<ObjectDetail>>
+    /** The first bytes of an object, read with a ranged request. */
+    preview(
+      connectionId: string,
+      bucket: string,
+      key: string,
+      maxBytes: number
+    ): Promise<Result<ObjectPreview>>
     remove(request: DeleteRequest): Promise<Result<DeleteResult>>
     /** Server-side copy then delete — S3 has no rename. */
     rename(request: RenameRequest): Promise<Result<void>>

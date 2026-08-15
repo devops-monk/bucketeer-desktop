@@ -37,6 +37,8 @@ interface SessionState {
   contextMenu: { x: number; y: number } | null
   /** The object whose details panel is open. */
   detailsKey: string | null
+  /** Which panel the details drawer opens on, so "Preview" can land straight on it. */
+  detailsTab: 'details' | 'preview'
   loading: boolean
   loadingMore: boolean
   error: string | null
@@ -56,7 +58,7 @@ interface SessionState {
   setFilter: (filter: string) => void
   setUploadOverride: (encryption: UploadEncryption | null) => void
   setContextMenu: (position: { x: number; y: number } | null) => void
-  setDetailsKey: (key: string | null) => void
+  setDetailsKey: (key: string | null, tab?: 'details' | 'preview') => void
 }
 
 export const useSession = create<SessionState>((set, get) => ({
@@ -71,6 +73,7 @@ export const useSession = create<SessionState>((set, get) => ({
   uploadOverride: null,
   contextMenu: null,
   detailsKey: null,
+  detailsTab: 'details',
   loading: false,
   loadingMore: false,
   error: null,
@@ -205,8 +208,8 @@ export const useSession = create<SessionState>((set, get) => ({
     set({ contextMenu: position })
   },
 
-  setDetailsKey(key) {
-    set({ detailsKey: key })
+  setDetailsKey(key, tab = 'details') {
+    set({ detailsKey: key, detailsTab: tab })
   },
 
   toggleSelection(key, additive) {

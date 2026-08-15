@@ -61,6 +61,8 @@ export const api = {
   objects: {
     list: (...args: Parameters<typeof bridge.objects.list>) => unwrap(bridge.objects.list(...args)),
     head: (...args: Parameters<typeof bridge.objects.head>) => unwrap(bridge.objects.head(...args)),
+    preview: (...args: Parameters<typeof bridge.objects.preview>) =>
+      unwrap(bridge.objects.preview(...args)),
     remove: (...args: Parameters<typeof bridge.objects.remove>) =>
       unwrap(bridge.objects.remove(...args)),
     rename: (...args: Parameters<typeof bridge.objects.rename>) =>

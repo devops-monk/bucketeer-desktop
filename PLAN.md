@@ -101,10 +101,12 @@ without them.
 
 ### v0.9 — Around the edges
 
+Previews and bulk share links are **done**: a Preview panel in the details drawer reads
+the first slice of an object with a ranged request rather than downloading it, and the
+share action now signs a link for every selected object at once.
+
 | Feature | Effort | Notes |
 | --- | --- | --- |
-| URL generator | S | Presigned and public, in bulk |
-| File previews | M | Text, images, CSV, JSON via range requests |
 | CloudFront distributions | M | Listing and invalidation only |
 | Command line interface | L | Shares the main-process services |
 | Bookmarks, import and export | S | Export never includes secrets |

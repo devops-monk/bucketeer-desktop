@@ -44,6 +44,7 @@ import type {
   ListingPage,
   ObjectDetail,
   ObjectHeaders,
+  ObjectPreview,
   ObjectVersion,
   S3Object
 } from '@shared/types'
@@ -465,6 +466,39 @@ export class S3ObjectStorage implements ObjectStorage {
   ): Promise<void> {
     const client = await this.factory.forBucket(connection, bucket)
     await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key, VersionId: versionId }))
+  }
+
+  /**
+   * Reads only the first slice of an object.
+   *
+   * A ranged request rather than a download: previewing a 4 GB log should cost one
+   * request for its first few kilobytes, not the whole file and the bill that comes
+   * with it.
+   */
+  async getObjectRange(
+    connection: Connection,
+    bucket: string,
+    key: string,
+    maxBytes: number
+  ): Promise<ObjectPreview> {
+    const client = await this.factory.forBucket(connection, bucket)
+    const result = await client.send(
+      new GetObjectCommand({ Bucket: bucket, Key: key, Range: `bytes=0-${maxBytes - 1}` })
+    )
+
+    const chunks: Buffer[] = []
+    for await (const chunk of result.Body as Readable) chunks.push(chunk as Buffer)
+    const data = Buffer.concat(chunks)
+
+    // ContentRange is "bytes 0-1023/54321"; the total after the slash is the real size.
+    const total = Number(result.ContentRange?.split('/')[1] ?? result.ContentLength ?? data.length)
+
+    return {
+      data: new Uint8Array(data),
+      contentType: result.ContentType,
+      size: Number.isFinite(total) ? total : data.length,
+      truncated: total > data.length
+    }
   }
 
   async getTags(

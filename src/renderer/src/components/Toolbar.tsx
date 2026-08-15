@@ -15,6 +15,7 @@ import {
   DownloadIcon,
   KeyIcon,
   FindIcon,
+  EyeIcon,
   InfoIcon,
   MoveIcon,
   SyncIcon,
@@ -54,7 +55,7 @@ export function Toolbar() {
   const [dialog, setDialog] = useState<
     'folder' | 'rename' | 'delete' | 'copy' | 'move' | 'class' | 'sync' | null
   >(null)
-  const [link, setLink] = useState<string | null>(null)
+  const [links, setLinks] = useState<Array<{ key: string; url: string }> | null>(null)
   const [chooserOpen, setChooserOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [bucketEncryption, setBucketEncryption] = useState<BucketEncryption | null>(null)
@@ -232,19 +233,28 @@ export function Toolbar() {
     }
   }
 
+  /** Signs a link for every selected object, since sharing a set is as common as one. */
   async function share() {
     setError(null)
+    setBusy(true)
     try {
-      setLink(
-        await api.objects.presign({
-          connectionId: connectionId as string,
-          bucket: location!.bucket,
-          key: selectedKeys[0],
-          expiresInSeconds: LINK_TTL_SECONDS
+      const signed: Array<{ key: string; url: string }> = []
+      for (const key of selectedKeys) {
+        signed.push({
+          key,
+          url: await api.objects.presign({
+            connectionId: connectionId as string,
+            bucket: location!.bucket,
+            key,
+            expiresInSeconds: LINK_TTL_SECONDS
+          })
         })
-      )
+      }
+      setLinks(signed)
     } catch (failure) {
       setError(messageFor(failure))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -258,6 +268,12 @@ export function Toolbar() {
       disabledReason: singleObject ? undefined : 'Select exactly one object'
     },
     {
+      label: 'Preview',
+      icon: <EyeIcon />,
+      onSelect: () => setDetailsKey(selectedKeys[0], 'preview'),
+      disabledReason: singleObject ? undefined : 'Select exactly one object'
+    },
+    {
       label: 'Download',
       icon: <DownloadIcon />,
       onSelect: () => void download(false),
@@ -267,7 +283,7 @@ export function Toolbar() {
       label: 'Share link',
       icon: <LinkIcon />,
       onSelect: () => void share(),
-      disabledReason: singleObject ? undefined : 'Select exactly one object'
+      disabledReason: selectedKeys.length === 0 ? 'Select objects' : undefined
     },
     {
       label: 'Rename',
@@ -357,15 +373,15 @@ export function Toolbar() {
         </Tooltip>
         <Tooltip
           label={
-            singleObject
-              ? 'Create a link that works for 24 hours without credentials'
-              : 'Select exactly one object first'
+            selectedKeys.length === 0
+              ? 'Select objects first'
+              : `Create ${selectedKeys.length === 1 ? 'a link' : 'links'} that work for 24 hours without credentials`
           }
           side="bottom"
         >
-          <Button onClick={() => void share()} disabled={!singleObject}>
+          <Button onClick={() => void share()} disabled={selectedKeys.length === 0}>
             <LinkIcon />
-            Share link
+            {selectedKeys.length > 1 ? `Share ${selectedKeys.length} links` : 'Share link'}
           </Button>
         </Tooltip>
         <Tooltip
@@ -494,8 +510,8 @@ export function Toolbar() {
         />
       ) : null}
 
-      {link ? (
-        <LinkDialog url={link} expiresLabel="in 24 hours" onClose={() => setLink(null)} />
+      {links ? (
+        <LinkDialog links={links} expiresLabel="in 24 hours" onClose={() => setLinks(null)} />
       ) : null}
 
       {dialog === 'copy' || dialog === 'move' ? (

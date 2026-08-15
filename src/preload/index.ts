@@ -70,6 +70,8 @@ const api: BucketeerApi = {
     list: (request: ListObjectsRequest) => ipcRenderer.invoke(Channels.objectsList, request),
     head: (connectionId: string, bucket: string, key: string) =>
       ipcRenderer.invoke(Channels.objectHead, connectionId, bucket, key),
+    preview: (connectionId: string, bucket: string, key: string, maxBytes: number) =>
+      ipcRenderer.invoke(Channels.objectPreview, connectionId, bucket, key, maxBytes),
     remove: (request: DeleteRequest) => ipcRenderer.invoke(Channels.objectsDelete, request),
     rename: (request: RenameRequest) => ipcRenderer.invoke(Channels.objectsRename, request),
     createFolder: (request: CreateFolderRequest) =>
