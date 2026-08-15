@@ -191,7 +191,7 @@ export function ConnectionEditor({ connection, onClose }: Props) {
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <div className="flex flex-col gap-4">
-            <Field label="Name">
+            <Field label="Name" tooltip="Whatever you want to call this in the sidebar. It is not sent to AWS.">
               <Input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
@@ -201,7 +201,10 @@ export function ConnectionEditor({ connection, onClose }: Props) {
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Region">
+              <Field
+                label="Region"
+                tooltip="Where requests are sent first. Buckets in other regions still open — Bucketeer follows S3's redirect."
+              >
                 <Select value={region} onChange={(event) => setRegion(event.target.value)}>
                   {REGIONS.map((value) => (
                     <option key={value} value={value}>
@@ -211,7 +214,10 @@ export function ConnectionEditor({ connection, onClose }: Props) {
                 </Select>
               </Field>
 
-              <Field label="Credentials">
+              <Field
+                label="Credentials"
+                tooltip="How Bucketeer authenticates. Profiles cover SSO and credential_process; keys are stored in your system keychain."
+              >
                 <Select
                   value={kind}
                   onChange={(event) => setKind(event.target.value as CredentialKind)}
@@ -228,7 +234,8 @@ export function ConnectionEditor({ connection, onClose }: Props) {
             {kind === 'shared-profile' ? (
               <Field
                 label="Profile"
-                hint="Profiles from ~/.aws/config and ~/.aws/credentials, including SSO and credential_process."
+                tooltip="Read from ~/.aws/config and ~/.aws/credentials. Expired SSO profiles are still listed so you can sign in to them."
+                hint="Includes SSO and credential_process profiles."
               >
                 {profiles.length > 0 ? (
                   <Select
@@ -298,7 +305,10 @@ export function ConnectionEditor({ connection, onClose }: Props) {
 
             {kind === 'assume-role' ? (
               <>
-                <Field label="Role ARN">
+                <Field
+                  label="Role ARN"
+                  tooltip="The role to assume, e.g. arn:aws:iam::123456789012:role/DataReader."
+                >
                   <Input
                     value={roleArn}
                     onChange={(event) => setRoleArn(event.target.value)}
@@ -306,7 +316,10 @@ export function ConnectionEditor({ connection, onClose }: Props) {
                     className="tabular"
                   />
                 </Field>
-                <Field label="Assume it using" hint="The credentials that call sts:AssumeRole.">
+                <Field
+                  label="Assume it using"
+                  tooltip="The credentials that call sts:AssumeRole. They need permission to assume the role above."
+                >
                   <Select value={baseProfile} onChange={(event) => setBaseProfile(event.target.value)}>
                     <option value="">Default credential chain</option>
                     {profiles.map((value) => (
@@ -317,7 +330,10 @@ export function ConnectionEditor({ connection, onClose }: Props) {
                   </Select>
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="MFA device" hint="Required only if the trust policy demands MFA.">
+                  <Field
+                    label="MFA device"
+                    tooltip="The ARN or serial of your MFA device. Only needed when the role's trust policy demands MFA."
+                  >
                     <Input
                       value={mfaSerial}
                       onChange={(event) => setMfaSerial(event.target.value)}
@@ -325,7 +341,10 @@ export function ConnectionEditor({ connection, onClose }: Props) {
                       className="tabular"
                     />
                   </Field>
-                  <Field label="External ID" hint="For cross-account roles that require one.">
+                  <Field
+                    label="External ID"
+                    tooltip="A shared secret some cross-account roles require in their trust policy."
+                  >
                     <Input
                       value={externalId}
                       onChange={(event) => setExternalId(event.target.value)}
@@ -347,7 +366,8 @@ export function ConnectionEditor({ connection, onClose }: Props) {
             <div className="grid grid-cols-2 gap-3 border-t border-line-soft pt-4">
               <Field
                 label="Endpoint"
-                hint="For MinIO, Cloudflare R2, Wasabi, or Backblaze. Leave empty for AWS."
+                tooltip="Point at S3-compatible storage instead of AWS. Setting this also switches on path-style addressing, which those services need."
+                hint="MinIO, Cloudflare R2, Wasabi, Backblaze. Empty for AWS."
               >
                 <Input
                   value={endpoint}
@@ -358,6 +378,7 @@ export function ConnectionEditor({ connection, onClose }: Props) {
               </Field>
               <Field
                 label="Default KMS key for uploads"
+                tooltip="Encrypts every upload on this connection with one key. Use the full ARN — bucket policies are written against ARNs and will not match an alias."
                 hint={
                   savedId
                     ? 'Optional. Left empty, Bucketeer uses whatever key the bucket itself uses.'

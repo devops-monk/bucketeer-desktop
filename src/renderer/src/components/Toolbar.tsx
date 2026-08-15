@@ -7,13 +7,14 @@ import { ConfirmDialog, LinkDialog, PromptDialog } from './dialogs'
 import { UploadDialog } from './UploadDialog'
 import {
   DownloadIcon,
+  KeyIcon,
   LinkIcon,
   NewFolderIcon,
   RenameIcon,
   TrashIcon,
   UploadIcon
 } from './icons'
-import { Button, Input } from './primitives'
+import { Button, SearchInput, Tooltip } from './primitives'
 
 /** How long share links last. Seven days is SigV4's hard ceiling. */
 const LINK_TTL_SECONDS = 24 * 60 * 60
@@ -178,32 +179,64 @@ export function Toolbar() {
 
   return (
     <>
-      <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-line bg-panel px-3">
-        <Button variant="primary" onClick={() => void chooseFiles()}>
-          <UploadIcon />
-          Upload
-        </Button>
-        <Button onClick={() => void download()} disabled={selectedCount === 0}>
-          <DownloadIcon />
-          Download
-        </Button>
-        <span className="mx-1 h-4 w-px bg-line" aria-hidden />
-        <Button onClick={() => setDialog('folder')}>
-          <NewFolderIcon />
-          New folder
-        </Button>
-        <Button onClick={() => setDialog('rename')} disabled={!singleObject}>
-          <RenameIcon />
-          Rename
-        </Button>
-        <Button onClick={() => void share()} disabled={!singleObject}>
-          <LinkIcon />
-          Share link
-        </Button>
-        <Button variant="danger" onClick={() => setDialog('delete')} disabled={selectedCount === 0}>
-          <TrashIcon />
-          Delete
-        </Button>
+      <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line bg-surface px-3">
+        <Tooltip label={`Send files into ${location.prefix || location.bucket}`} side="bottom">
+          <Button variant="primary" onClick={() => void chooseFiles()}>
+            <UploadIcon />
+            Upload
+          </Button>
+        </Tooltip>
+        <Tooltip
+          label={
+            selectedCount === 0
+              ? 'Select objects or folders first'
+              : 'Save the selection to a folder on this machine'
+          }
+          side="bottom"
+        >
+          <Button variant="secondary" onClick={() => void download()} disabled={selectedCount === 0}>
+            <DownloadIcon />
+            Download
+          </Button>
+        </Tooltip>
+        <span className="mx-1.5 h-4 w-px bg-line" aria-hidden />
+        <Tooltip label="Create an empty folder here" side="bottom">
+          <Button onClick={() => setDialog('folder')}>
+            <NewFolderIcon />
+            New folder
+          </Button>
+        </Tooltip>
+        <Tooltip
+          label={singleObject ? 'Give this object a new key' : 'Select exactly one object first'}
+          side="bottom"
+        >
+          <Button onClick={() => setDialog('rename')} disabled={!singleObject}>
+            <RenameIcon />
+            Rename
+          </Button>
+        </Tooltip>
+        <Tooltip
+          label={
+            singleObject
+              ? 'Create a link that works for 24 hours without credentials'
+              : 'Select exactly one object first'
+          }
+          side="bottom"
+        >
+          <Button onClick={() => void share()} disabled={!singleObject}>
+            <LinkIcon />
+            Share link
+          </Button>
+        </Tooltip>
+        <Tooltip
+          label={selectedCount === 0 ? 'Select something first' : 'Delete the selection'}
+          side="bottom"
+        >
+          <Button variant="danger" onClick={() => setDialog('delete')} disabled={selectedCount === 0}>
+            <TrashIcon />
+            Delete
+          </Button>
+        </Tooltip>
 
         <div className="flex-1" />
 
@@ -217,17 +250,17 @@ export function Toolbar() {
           onOpen={() => setChooserOpen(true)}
         />
 
-        <Input
+        <SearchInput
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           placeholder="Filter this folder"
-          className="h-7 w-52"
+          className="w-56"
           aria-label="Filter the current listing"
         />
       </div>
 
       {error ? (
-        <div className="flex items-start gap-2 border-b border-danger/40 bg-danger/5 px-3 py-2">
+        <div className="flex items-start gap-2 border-b border-danger/30 bg-danger-soft/50 px-3 py-2">
           <p className="flex-1 text-[12px] leading-relaxed text-text">{error}</p>
           <button onClick={() => setError(null)} className="text-faint hover:text-text">
             ✕
@@ -331,16 +364,15 @@ function EncryptionBadge({
   const tones = { good: 'text-success', plain: 'text-faint', warn: 'text-danger' }
 
   return (
-    <button
-      onClick={onOpen}
-      className="tabular flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] border border-line px-2 text-[11px] hover:border-faint"
-      title={described.detail}
-    >
-      <span className={tones[described.tone]} aria-hidden>
-        ⚿
-      </span>
-      <span className="text-muted">{described.label}</span>
-    </button>
+    <Tooltip label={`${described.detail} Click to change it for this bucket.`} side="bottom">
+      <button
+        onClick={onOpen}
+        className="tabular flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line bg-sunken px-2 text-[11px] transition-colors hover:border-line-strong"
+      >
+        <KeyIcon className={`h-3.5 w-3.5 ${tones[described.tone]}`} />
+        <span className="text-muted">{described.label}</span>
+      </button>
+    </Tooltip>
   )
 }
 

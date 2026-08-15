@@ -3,7 +3,7 @@ import type { S3Object, S3Prefix } from '@shared/types'
 import { extensionOf, formatBytes, formatStorageClass, formatTimestamp } from '../lib/format'
 import { useSession } from '../store/session'
 import { FileIcon, FolderIcon } from './icons'
-import { Button } from './primitives'
+import { Button, Tooltip } from './primitives'
 
 type SortColumn = 'name' | 'size' | 'modified'
 type SortDirection = 'asc' | 'desc'
@@ -90,9 +90,9 @@ export function ObjectTable({ onOpenDetails }: { onOpenDetails: (key: string) =>
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="rise flex-1 overflow-y-auto">
       <table className="w-full border-collapse">
-        <thead className="sticky top-0 z-10 bg-panel">
+        <thead className="sticky top-0 z-10 bg-surface/95 backdrop-blur">
           <tr className="border-b border-line">
             <th className="w-9 px-3 py-2">
               <Checkbox
@@ -117,7 +117,9 @@ export function ObjectTable({ onOpenDetails }: { onOpenDetails: (key: string) =>
               onSort={toggleSort}
               className="text-right"
             />
-            <th className="eyebrow px-3 py-2 pr-4 text-right font-normal">Class</th>
+            <th className="eyebrow w-24 px-3 py-2 pr-5 text-right font-normal whitespace-nowrap">
+              Class
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -252,8 +254,8 @@ function PrefixRow({
       onClick={(event) => onSelect(event.metaKey || event.ctrlKey || event.shiftKey)}
       onDoubleClick={onOpen}
       aria-selected={selected}
-      className={`group cursor-default border-b border-line-soft ${
-        selected ? 'bg-accent/12' : 'hover:bg-raised'
+      className={`group cursor-default border-b border-line-soft transition-colors duration-100 ${
+        selected ? 'bg-accent-soft/50' : 'hover:bg-hover'
       }`}
     >
       <td className="px-3 py-2">
@@ -268,7 +270,9 @@ function PrefixRow({
           }}
           className="flex items-center gap-2.5 text-left"
         >
-          <FolderIcon className="text-accent-ink" />
+          <Tooltip label="Folder — double-click to open">
+            <FolderIcon className="text-accent-ink transition-transform duration-150 group-hover:scale-110" />
+          </Tooltip>
           <span className="tabular truncate text-[12.5px] text-text group-hover:text-accent-ink">
             {prefix.name}
           </span>
@@ -276,7 +280,7 @@ function PrefixRow({
       </td>
       <td className="tabular px-3 py-2 text-right text-[11.5px] text-faint">—</td>
       <td className="tabular px-3 py-2 text-right text-[11.5px] text-faint">—</td>
-      <td className="px-3 py-2 pr-4" />
+      <td className="px-3 py-2 pr-5" />
     </tr>
   )
 }
@@ -300,8 +304,8 @@ function ObjectRow({
       onClick={(event) => onSelect(event.metaKey || event.ctrlKey || event.shiftKey)}
       onDoubleClick={onOpen}
       aria-selected={selected}
-      className={`cursor-default border-b border-line-soft ${
-        selected ? 'bg-accent/12' : 'hover:bg-raised'
+      className={`cursor-default border-b border-line-soft transition-colors duration-100 ${
+        selected ? 'bg-accent-soft/50' : 'hover:bg-hover'
       }`}
     >
       <td className="px-3 py-2">
@@ -309,7 +313,9 @@ function ObjectRow({
       </td>
       <td className="px-3 py-2">
         <div className="flex items-center gap-2.5">
-          <FileIcon className="text-faint" />
+          <Tooltip label="Object — double-click for details">
+            <FileIcon className="text-faint" />
+          </Tooltip>
           <span className="tabular truncate text-[12.5px] text-text">{object.name}</span>
           {/* The extension repeats what the name ends in, so it stays quiet: it exists
               to make a column of mixed types scannable, not to label each row twice. */}
@@ -326,7 +332,7 @@ function ObjectRow({
       <td className="tabular px-3 py-2 text-right text-[11.5px] whitespace-nowrap text-faint">
         {formatTimestamp(object.lastModified)}
       </td>
-      <td className="px-3 py-2 pr-4 text-right">
+      <td className="px-3 py-2 pr-5 text-right">
         {storageClass ? (
           <span className="tabular text-[10px] tracking-wide text-accent-ink uppercase">
             {storageClass}

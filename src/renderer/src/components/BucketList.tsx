@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { formatFullTimestamp } from '../lib/format'
 import { useSession } from '../store/session'
 import { BucketIcon } from './icons'
-import { EmptyState, Input } from './primitives'
+import { EmptyState, SearchInput, Tooltip } from './primitives'
 
 /**
  * Buckets are the top level of a connection. Shown as a list rather than a grid of
@@ -34,13 +34,13 @@ export function BucketList() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-3 border-b border-line px-4">
+      <div className="flex h-11 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
         <span className="eyebrow shrink-0">
           {filter ? `${visible.length} of ${buckets.length}` : buckets.length}{' '}
           {buckets.length === 1 ? 'bucket' : 'buckets'}
         </span>
         <div className="flex-1" />
-        <Input
+        <SearchInput
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           onKeyDown={(event) => {
@@ -50,7 +50,7 @@ export function BucketList() {
           }}
           placeholder="Filter buckets"
           aria-label="Filter buckets by name"
-          className="h-7 w-72"
+          className="w-72"
           autoFocus
         />
       </div>
@@ -61,17 +61,19 @@ export function BucketList() {
           detail={`None of these ${buckets.length} buckets match “${filter}”. Matching is case-insensitive, and every word must appear somewhere in the name.`}
         />
       ) : (
-        <ul className="flex-1 overflow-y-auto">
+        <ul className="rise flex-1 overflow-y-auto">
           {visible.map((bucket) => (
             <li key={bucket.name}>
               <button
                 onClick={() => void openBucket(bucket.name)}
-                className="group flex w-full items-center gap-3 border-b border-line-soft px-4 py-2.5 text-left hover:bg-raised"
+                className="group flex w-full items-center gap-3 border-b border-line-soft px-4 py-2.5 text-left transition-colors duration-100 hover:bg-hover"
               >
                 {/* The app's own pail mark, so a bucket in the list reads as the same
                     thing as the icon in the dock. The previous hollow square read as a
                     checkbox that did nothing. */}
-                <BucketIcon className="text-faint transition-colors group-hover:text-accent-ink" />
+                <Tooltip label="Bucket — click to open">
+                  <BucketIcon className="text-faint transition-colors group-hover:text-accent-ink" />
+                </Tooltip>
                 <span className="tabular flex-1 truncate text-[13px] text-text">
                   {highlight(bucket.name, filter)}
                 </span>

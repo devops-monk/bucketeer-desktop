@@ -21,6 +21,7 @@ function Svg({ className = '', children }: IconProps & { children: React.ReactNo
       strokeLinecap="round"
       strokeLinejoin="round"
       className={`shrink-0 ${className}`}
+      preserveAspectRatio="xMidYMid meet"
       aria-hidden
     >
       {children}

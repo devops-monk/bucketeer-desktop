@@ -1,7 +1,7 @@
 import { breadcrumbs } from '../lib/format'
 import { useSession } from '../store/session'
 import { RefreshIcon, UpIcon } from './icons'
-import { Button } from './primitives'
+import { Button, Tooltip } from './primitives'
 
 /**
  * The path bar reads as the S3 URI it actually is — `s3://bucket/prefix/` in monospace —
@@ -19,10 +19,12 @@ export function PathBar({ onRefresh }: { onRefresh: () => void }) {
   const crumbs = breadcrumbs(location.prefix)
 
   return (
-    <div className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-panel px-3">
-      <Button onClick={() => void goUp()} aria-label="Go up one level">
-        <UpIcon />
-      </Button>
+    <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-surface px-3">
+      <Tooltip label="Go up one level" side="bottom">
+        <Button onClick={() => void goUp()} aria-label="Go up one level">
+          <UpIcon />
+        </Button>
+      </Tooltip>
 
       <div className="tabular flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto whitespace-nowrap text-[12px]">
         <span className="text-faint">s3://</span>
@@ -46,9 +48,11 @@ export function PathBar({ onRefresh }: { onRefresh: () => void }) {
         <span className="text-faint">/</span>
       </div>
 
-      <Button onClick={onRefresh} disabled={loading} aria-label="Refresh this listing">
-        <RefreshIcon className={loading ? 'animate-spin' : ''} />
-      </Button>
+      <Tooltip label="Reload this folder" side="bottom">
+        <Button onClick={onRefresh} disabled={loading} aria-label="Refresh this listing">
+          <RefreshIcon className={loading ? 'animate-spin' : ''} />
+        </Button>
+      </Tooltip>
     </div>
   )
 }

@@ -3,13 +3,15 @@
 /*
  * Bucketeer's design language: an instrument panel, not a document.
  *
- * Light, near-white surfaces separated by hairlines rather than shadows; monospace for
- * every value the machine owns (keys, byte counts, regions, timestamps) and proportional
- * type only for language.
+ * Surfaces are layered rather than outlined — an app window, panels that sit on it, and
+ * rows that lift on hover — so structure reads from light rather than from boxes. Type
+ * is split by ownership: proportional for language, monospace for every value the
+ * machine owns (keys, byte counts, regions, timestamps), which is what lets a dense
+ * column be scanned without being read.
  *
  * The accent is Very's brand pink, #DE007B, taken from very.co.uk. It marks what you can
- * act on and nothing else. Success is reserved — it means "encrypted" and nothing more,
- * so a glance down the encryption column stays trustworthy.
+ * act on and nothing else. Green is reserved — it means "encrypted" and nothing more, so
+ * a glance down the encryption column stays trustworthy.
  *
  * Pink is split into two tokens on purpose. The brand pink is a *fill*: white on it
  * measures 4.78:1, which passes AA. As small text it does not — 4.31:1 on our light
@@ -18,53 +20,89 @@
  */
 
 :root {
-  --ink: #f2f3f5;
-  --panel: #ffffff;
-  --raised: #f7f7f8;
-  --line: #e2e4e8;
-  --line-soft: #edeef1;
-  --text: #16161a;
-  --muted: #5c6068;
-  --faint: #8a8f98;
+  /* Surfaces, lightest-to-darkest in the direction that matters for this theme. */
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-hover: #f2f3f6;
+  --surface-sunken: #eceef1;
+
+  --line: #e0e3e8;
+  --line-soft: #eef0f3;
+  --line-strong: #cfd4dc;
+
+  --text: #14161a;
+  --muted: #596070;
+  --faint: #8b93a3;
+
   --accent: #de007b;
   --accent-ink: #b80066;
-  --accent-soft: #f9cce4;
+  --accent-soft: #fbd9ec;
   --on-accent: #ffffff;
+
   --success: #0f7a5a;
+  --success-soft: #d9f2e8;
   --danger: #b3261e;
-  /* The dialog scrim darkens in both themes — a light theme cannot dim with its own
-     background colour, only with shadow. */
-  --scrim: rgb(22 22 26 / 0.45);
+  --danger-soft: #fbe0de;
+
+  --scrim: rgb(20 22 26 / 0.42);
+
+  /* Elevation. Light theme lifts with shadow; dark theme lifts with lighter surfaces. */
+  --shadow-sm: 0 1px 2px rgb(16 20 28 / 0.06), 0 1px 1px rgb(16 20 28 / 0.04);
+  --shadow-md: 0 4px 12px rgb(16 20 28 / 0.08), 0 1px 3px rgb(16 20 28 / 0.06);
+  --shadow-lg: 0 16px 40px rgb(16 20 28 / 0.16), 0 2px 8px rgb(16 20 28 / 0.08);
+  /* A hairline of light along the top edge, which is what makes a panel read as raised. */
+  --edge-highlight: inset 0 1px 0 rgb(255 255 255 / 0.9);
+
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ink: #121013;
-    --panel: #1a171c;
-    --raised: #231f26;
-    --line: #322c35;
-    --line-soft: #241f27;
-    --text: #f2eef2;
-    --muted: #a79eaa;
-    --faint: #7a7280;
+    --bg: #0d0c10;
+    --surface: #141318;
+    --surface-raised: #1b1a21;
+    --surface-hover: #21202a;
+    --surface-sunken: #100f14;
+
+    --line: #2a2833;
+    --line-soft: #201f28;
+    --line-strong: #3a3746;
+
+    --text: #f0eef4;
+    --muted: #a19cae;
+    --faint: #756f83;
+
     --accent: #de007b;
     --accent-ink: #ff4da6;
-    --accent-soft: #6b1246;
+    --accent-soft: #4a0c31;
     --on-accent: #ffffff;
+
     --success: #3dbe95;
+    --success-soft: #10312a;
     --danger: #ff6b5e;
-    --scrim: rgb(0 0 0 / 0.65);
+    --danger-soft: #35161a;
+
+    --scrim: rgb(0 0 0 / 0.62);
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 14px rgb(0 0 0 / 0.45);
+    --shadow-lg: 0 20px 50px rgb(0 0 0 / 0.6), 0 2px 10px rgb(0 0 0 / 0.4);
+    --edge-highlight: inset 0 1px 0 rgb(255 255 255 / 0.05);
+
     color-scheme: dark;
   }
 }
 
 @theme inline {
-  --color-ink: var(--ink);
-  --color-panel: var(--panel);
-  --color-raised: var(--raised);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--surface-raised);
+  --color-hover: var(--surface-hover);
+  --color-sunken: var(--surface-sunken);
   --color-line: var(--line);
   --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
   --color-text: var(--text);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
@@ -73,13 +111,31 @@
   --color-accent-soft: var(--accent-soft);
   --color-on-accent: var(--on-accent);
   --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
   --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
   --color-scrim: var(--scrim);
 
-  --font-sans: ui-sans-serif, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto,
-    system-ui, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', 'Roboto Mono',
-    Menlo, monospace;
+  /* Kept deliberately tight: a file manager reads as a tool, not a card gallery. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  --font-sans:
+    ui-sans-serif, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto, system-ui,
+    sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, monospace;
+}
+
+/* Aliases kept so older markup does not have to change in one sweep. */
+@theme inline {
+  --color-ink: var(--bg);
+  --color-panel: var(--surface);
 }
 
 html,
@@ -90,11 +146,13 @@ body,
 
 body {
   margin: 0;
-  background: var(--ink);
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 13px;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   overflow: hidden;
 }
 
@@ -108,7 +166,8 @@ body {
 .eyebrow {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.14em;
+  font-weight: 500;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--faint);
 }
@@ -117,35 +176,62 @@ body {
 .tabular {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'ss01';
+}
+
+/* A raised panel: surface, hairline, and a lit top edge. */
+.raised {
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-md), var(--edge-highlight);
 }
 
 :where(button, a, input, select, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* Thin, unobtrusive scrollbars — the content is the point, not the chrome. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  scrollbar-color: var(--line-strong) transparent;
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: var(--line-strong);
   border: 3px solid transparent;
   background-clip: content-box;
-  border-radius: 6px;
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--faint);
   background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* A listing that has just loaded settles in rather than snapping. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 160ms ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {

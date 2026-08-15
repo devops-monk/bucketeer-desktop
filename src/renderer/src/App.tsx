@@ -8,9 +8,11 @@ import { ObjectDetails } from './components/ObjectDetails'
 import { ObjectTable } from './components/ObjectTable'
 import { PathBar } from './components/PathBar'
 import { Toolbar } from './components/Toolbar'
+import { WelcomePane } from './components/WelcomePane'
 import { TransferPanel } from './components/TransferPanel'
 import { SsoSignIn } from './components/SsoSignIn'
-import { Button, EmptyState, ErrorNotice, LoadingBar } from './components/primitives'
+import { FolderIcon } from './components/icons'
+import { EmptyState, ErrorNotice, LoadingBar } from './components/primitives'
 import { api, messageFor } from './lib/api'
 import { useListingAutoRefresh } from './lib/auto-refresh'
 import { resolveUploadEncryption } from './lib/uploads'
@@ -113,7 +115,7 @@ export function App() {
     <>
       {/* Drag region: on macOS the toolbar runs under the traffic lights. */}
       <header
-        className="flex h-9 shrink-0 items-center border-b border-line bg-panel px-4"
+        className="flex h-10 shrink-0 items-center border-b border-line bg-surface px-4"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
         {/* The wordmark is the one place the brand pink appears unprompted; everywhere
@@ -130,7 +132,7 @@ export function App() {
         <ConnectionRail onAdd={() => openEditor(null)} onEdit={openEditor} />
 
         <main
-          className="relative flex min-w-0 flex-1 flex-col bg-ink"
+          className="relative flex min-w-0 flex-1 flex-col bg-bg"
           onDragOver={(event) => {
             if (!canDrop) return
             event.preventDefault()
@@ -171,21 +173,7 @@ export function App() {
           {dropError ? <ErrorNotice message={dropError} /> : null}
 
           {!activeId ? (
-            <EmptyState
-              title="No connection open"
-              detail={
-                connections.length === 0
-                  ? 'Add a connection with your AWS credentials to start browsing buckets.'
-                  : 'Choose a connection on the left to see its buckets.'
-              }
-              action={
-                connections.length === 0 ? (
-                  <Button variant="primary" onClick={() => openEditor(null)}>
-                    Add a connection
-                  </Button>
-                ) : undefined
-              }
-            />
+            <WelcomePane onAdd={() => openEditor(null)} />
           ) : !location ? (
             <BucketList />
           ) : listing &&
@@ -193,16 +181,17 @@ export function App() {
             listing.objects.length === 0 &&
             !loading ? (
             <EmptyState
-              title="Nothing here"
-              detail={`${location.prefix || location.bucket} has no objects at this level. Drop files here to upload them.`}
+              icon={<FolderIcon className="h-12 w-12" />}
+              title="This folder is empty"
+              detail={`Nothing is stored under ${location.prefix || location.bucket} yet. Drop files here, or use Upload.`}
             />
           ) : (
             <ObjectTable onOpenDetails={setDetailsKey} />
           )}
 
           {dropActive ? (
-            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-accent bg-accent/8">
-              <p className="rounded-[3px] bg-panel px-3 py-1.5 text-[12px] text-text shadow-lg">
+            <div className="pointer-events-none absolute inset-0 z-20 m-2 flex items-center justify-center rounded-lg border-2 border-dashed border-accent bg-accent/8">
+              <p className="raised rounded-md px-3 py-2 text-[12px] font-medium text-text">
                 Upload to {location ? `s3://${location.bucket}/${location.prefix}` : ''}
               </p>
             </div>

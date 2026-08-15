@@ -1,6 +1,8 @@
 import { formatBytes, sumBytes } from '../lib/format'
 import { useSession } from '../store/session'
 import { summarise, useTransfers } from '../store/transfers'
+import { KeyIcon } from './icons'
+import { Tooltip } from './primitives'
 
 /**
  * The manifest strip.
@@ -24,7 +26,7 @@ export function ManifestStrip() {
   const selectedObjects = listing?.objects.filter((object) => selection.has(object.key)) ?? []
 
   return (
-    <footer className="flex h-7 shrink-0 items-center gap-0 border-t border-accent-soft bg-panel text-[11px]">
+    <footer className="flex h-7 shrink-0 items-center gap-0 border-t border-line bg-surface text-[11px]">
       <Cell>
         {connection ? (
           <span className="text-muted">{connection.name}</span>
@@ -45,8 +47,11 @@ export function ManifestStrip() {
 
       {listing ? (
         <Cell mono>
-          {listing.prefixes.length > 0 ? `${listing.prefixes.length} prefixes · ` : ''}
-          {listing.objects.length} objects · {formatBytes(sumBytes(listing.objects.map((o) => o.size)))}
+          {listing.prefixes.length > 0
+            ? `${listing.prefixes.length} ${listing.prefixes.length === 1 ? 'folder' : 'folders'} · `
+            : ''}
+          {listing.objects.length} {listing.objects.length === 1 ? 'object' : 'objects'} ·{' '}
+          {formatBytes(sumBytes(listing.objects.map((o) => o.size)))}
           {/* A truncated listing must say so: the totals above are a page, not the whole bucket. */}
           {listing.nextToken ? ' · partial' : ''}
         </Cell>
@@ -85,9 +90,9 @@ export function ManifestStrip() {
       {connection?.kmsKeyId ? (
         <Cell mono>
           {/* Green means encrypted, everywhere in the app. */}
-          <span className="text-success" aria-hidden>
-            ⚿
-          </span>{' '}
+          <Tooltip label={`Uploads here are encrypted with ${connection.kmsKeyId}`}>
+            <KeyIcon className="mr-1.5 h-3.5 w-3.5 text-success" />
+          </Tooltip>
           <span className="text-muted">uploads encrypted with {shortKey(connection.kmsKeyId)}</span>
         </Cell>
       ) : null}
